@@ -13,9 +13,9 @@ Backend code is written in python for intercating with the LLM. Then it is wrapp
 
 Sample screenshot of the app. 
 
-<img width="500" height="250" alt="image" src="https://github.com/user-attachments/assets/d43a14f5-80d8-4516-b16f-3ebe708f3f2d" />
+<img width="250" height="250" alt="image" src="https://github.com/user-attachments/assets/d43a14f5-80d8-4516-b16f-3ebe708f3f2d" />
 
-<img width="500" height="250" alt="image" src="https://github.com/user-attachments/assets/bb913692-8320-4777-aeb5-00e9bc048703" />
+<img width="250" height="250" alt="image" src="https://github.com/user-attachments/assets/bb913692-8320-4777-aeb5-00e9bc048703" />
 
 
 Create a React app if not already done
