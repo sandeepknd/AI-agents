@@ -1,0 +1,175 @@
+import React, { useEffect, useRef, useState } from "react";
+import axios from "axios";
+import "./index.css"; // Tailwind should be imported here
+import logo from "./logo.png"; // Adjust path if needed
+
+function App() {
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [file, setFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [botThinking, setBotThinking] = useState(false);
+  const chatEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleUpload = async (e) => {
+    const uploadedFile = e.target.files[0];
+    if (!uploadedFile) return;
+
+    setFile(uploadedFile);
+    setIsUploading(true);
+    setMessages((prev) => [
+      ...prev,
+      {
+        type: "user",
+        text: `📄 Uploaded: ${uploadedFile.name}`,
+        timestamp: new Date().toLocaleTimeString(),
+      },
+    ]);
+
+    const formData = new FormData();
+    formData.append("file", uploadedFile);
+
+    try {
+      const response = await axios.post("http://localhost:8000/upload", formData);
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "bot",
+          text: response.data.answer || "✅ File processed successfully.",
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ]);
+    } catch (error) {
+      console.error("Upload failed:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "bot",
+          text: "❌ Error uploading file.",
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ]);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+
+    setMessages((prev) => [
+      ...prev,
+      { type: "user", text: input, timestamp: new Date().toLocaleTimeString() },
+    ]);
+    setInput("");
+    setBotThinking(true);
+
+    try {
+      const response = await axios.post(
+        "http://localhost:8000/ask",
+        { message: input },
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "bot",
+          text: response.data.answer,
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ]);
+    } catch (error) {
+      console.error("Message send failed:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "bot",
+          text: "❌ Error: Could not get response from server.",
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ]);
+    } finally {
+      setBotThinking(false);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") sendMessage();
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-start px-4 py-6 bg-gradient-to-br from-blue-100 via-green-200 to-blue-300">
+      <div className="flex items-center mb-4 gap-3">
+        <img src={logo} alt="Logo" className="w-10 h-10 rounded-full shadow-md" />
+        <h1 className="text-3xl font-bold text-gray-800 drop-shadow">Welcome to Open Chat</h1>
+      </div>
+
+      <div className="w-full max-w-2xl flex flex-col bg-white shadow-xl rounded-2xl p-4 overflow-hidden">
+        <div className="h-[60vh] overflow-y-auto space-y-3 px-2">
+          {messages.map((msg, idx) => (
+            <div
+              key={idx}
+              className={`flex flex-col ${
+                msg.type === "user" ? "items-end" : "items-start"
+              }`}
+            >
+              <div
+                className={`px-4 py-2 rounded-xl max-w-sm ${
+                  msg.type === "user"
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-200 text-gray-800"
+                }`}
+              >
+                {msg.text}
+              </div>
+              <span className="text-xs text-gray-500 mt-1">{msg.timestamp}</span>
+            </div>
+          ))}
+
+          {isUploading && (
+            <div className="text-sm text-gray-600 italic mt-2">⏳ Uploading...</div>
+          )}
+          {botThinking && (
+            <div className="text-sm text-gray-600 italic mt-2 animate-pulse">🤖 Bot is typing...</div>
+          )}
+          <div ref={chatEndRef} />
+        </div>
+
+        <div className="flex items-center justify-between mt-4 gap-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyPress}
+            placeholder="Type your message..."
+            className="flex-grow px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <button
+            onClick={sendMessage}
+            className="px-4 py-2 bg-green-500 text-white rounded-full hover:bg-green-600"
+          >
+            Send
+          </button>
+          <label className="cursor-pointer px-4 py-2 bg-indigo-500 text-white rounded-full hover:bg-indigo-600">
+            {file ? file.name : "Upload"}
+            <input type="file" onChange={handleUpload} hidden />
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
+

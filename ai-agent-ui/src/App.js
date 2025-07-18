@@ -1,0 +1,234 @@
+import React, { useEffect, useRef, useState } from "react";
+import "./index.css";
+import logo from "./logo.png"; // Make sure logo.png exists in this path
+
+function App() {
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [botThinking, setBotThinking] = useState(false);
+  const chatEndRef = useRef(null); 
+
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, botThinking, isUploading]);
+
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+
+    const userMessage = {
+      type: "user",
+      text: input,
+      timestamp: new Date().toLocaleTimeString(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setBotThinking(true);
+
+    try {
+      const response = await fetch("http://localhost:8000/ask", {
+        method: "POST", 
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query: input }),
+      });
+
+      if (!response.ok) throw new Error("Server error");
+
+      const data = await response.json();
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "bot",
+          text: data.response || "🤖 No response.",
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ]);
+    } catch (error) {
+      console.error("Chat error:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "bot",
+          text: "❌ Failed to get a response from server.",
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ]);
+    } finally {
+      setBotThinking(false);
+    }
+  };
+
+  const handleUpload = async (e) => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
+
+    setIsUploading(true);
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        type: "user",
+        text: `📄 Uploaded: ${selectedFile.name}`,
+        timestamp: new Date().toLocaleTimeString(),
+      },
+    ]);
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    try {
+      const response = await fetch("http://localhost:8000/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error("Upload failed");
+
+      const data = await response.json();
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "bot",
+          text: data.summary || "✅ File uploaded and processed successfully.",
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ]);
+    } catch (error) {
+      console.error("Upload error:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "bot",
+          text: "❌ Upload failed. Please try again.",
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ]);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") sendMessage();
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col items-center px-4 py-6 bg-gradient-to-br from-green-200 via-blue-20 to-red-200">
+      <div className="flex items-center gap-3 mb-4">
+        <img src={logo} alt="Logo" className="w-10 h-10 squared-full shadow-md" />
+        <h1 className="text-3xl font-bold text-gray-900 clean-shadow">Welcome to Open Chat</h1>
+      </div>
+
+      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-lg p-4 flex flex-col">
+
+
+<div className="h-[60vh] overflow-y-auto space-y-4 px-2">
+ 
+{messages.map((msg, idx) => (
+  <div
+    key={idx}
+    className={`flex ${msg.type === "user" ? "justify-end" : "justify-start"} 
+      ${msg.type === "user" ? "animate-fade-right" : "animate-fade-left"}`}
+  >
+    <div className={`flex items-end ${msg.type === "user" ? "flex-row-reverse" : "flex-row"} gap-2`}>
+      
+      {/* Avatar */}
+      <div className="flex-shrink-0">
+        {msg.type === "user" ? (
+          <svg className="w-8 h-8 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 12c2.67 0 8 1.34 8 4v2H4v-2c0-2.66 5.33-4 8-4zm0-2a4 4 0 100-8 4 4 0 000 8z" />
+          </svg>
+        ) : (
+          <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 3C7 3 2 7 2 12c0 2.3 1 4.4 2.7 6.1L4 21l2.9-.7C9.6 21 10.8 21 12 21c5 0 10-4 10-9s-5-9-10-9z" />
+          </svg>
+        )}
+      </div>
+
+      {/* Bubble and tail */}
+      <div className="flex flex-col items-start max-w-xs">
+        <div className="relative">
+          <div
+            className={`px-4 py-2 rounded-xl break-words ${
+              msg.type === "user"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 text-gray-800"
+            }`}
+          >
+            {msg.text}
+          </div>
+
+          {/* Bubble tail */}
+          <div
+            className={`absolute top-2 w-0 h-0 border-t-8 border-b-8 ${
+              msg.type === "user"
+                ? "border-l-8 border-l-blue-600 right-[-8px] border-transparent"
+                : "border-r-8 border-r-gray-200 left-[-8px] border-transparent"
+            }`}
+          ></div>
+        </div>
+
+        {/* Timestamp */}
+        <span
+          className={`text-xs text-gray-500 mt-1 ${
+            msg.type === "user" ? "self-end" : "self-start"
+          }`}
+        >
+          {msg.timestamp}
+        </span>
+      </div>
+    </div>
+  </div>
+))}
+
+
+
+
+  {/* Status Messages */}
+  {isUploading && (
+    <div className="text-sm text-gray-600 italic mt-2 animate-pulse">📤 Uploading and Summarizing...</div>
+  )}
+  {botThinking && (
+    <div className="text-sm text-gray-600 italic mt-2 animate-pulse">
+      🤖 Bot is typing...
+    </div>
+  )}
+
+  <div ref={chatEndRef} />
+</div>
+
+
+        <div className="flex items-center gap-2 mt-4">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type your message..."
+            className="flex-grow px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <button
+            onClick={sendMessage}
+            className="px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700"
+          >
+            Send
+          </button>
+          <label className="cursor-pointer px-4 py-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700">
+            Upload
+            <input type="file" onChange={handleUpload} hidden />
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
+
