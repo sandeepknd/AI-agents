@@ -15,6 +15,9 @@ Sample screenshot of the app.
 
 <img width="1459" height="896" alt="image" src="https://github.com/user-attachments/assets/d43a14f5-80d8-4516-b16f-3ebe708f3f2d" />
 
+<img width="1619" height="926" alt="image" src="https://github.com/user-attachments/assets/bb913692-8320-4777-aeb5-00e9bc048703" />
+
+
 
 
 Create a React app if not already done
