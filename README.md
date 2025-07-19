@@ -33,3 +33,12 @@ Sample screenshot of the app.
 <img width="250" height="250" alt="image" src="https://github.com/user-attachments/assets/d43a14f5-80d8-4516-b16f-3ebe708f3f2d" />
 
 <img width="250" height="250" alt="image" src="https://github.com/user-attachments/assets/bb913692-8320-4777-aeb5-00e9bc048703" />
+
+**Run the backend**
+navigate to the main directory where the python files exist and execute
+**uvicorn main_fastapi:app --reload --host 0.0.0.0 --port 8000**
+
+**Run the frontend** 
+Navigate to the directory ai-agent-ui and execute
+**npm start**
+
