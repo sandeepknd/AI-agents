@@ -36,9 +36,11 @@ Sample screenshot of the app.
 
 **Run the backend**
 navigate to the main directory where the python files exist and execute
+
 **uvicorn main_fastapi:app --reload --host 0.0.0.0 --port 8000**
 
 **Run the frontend** 
 Navigate to the directory ai-agent-ui and execute
+
 **npm start**
 
