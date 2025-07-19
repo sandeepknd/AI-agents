@@ -2,8 +2,8 @@ This is the repo for creating an AI-powered chatbot aap.
 Currently, it supports the below AI agents for performing 
 1. arithmetic operations (add, substract, multiply and division)
 2. getting the weather of a city; currently hardcoded. The intention is to verify the appropriate tool calling
-3. document uploader and analyzer; doc in pdf and txt format is uploaded throgh the UI and it automatic analyzes/summarizes it.
-4. default fallback to llm based-response is also supported. In other words, If the user query doesn't correspond to any of the available tools, it is directly sent to the LLM.
+3. document uploader and analyzer; doc in pdf and txt format is uploaded throgh the UI and it automatically analyzes/summarizes it.
+5. default fallback to llm based-response is also supported. In other words, If the user query doesn't correspond to any of the available tools, it is directly sent to the LLM.
 
 Currently llama3 llm is used. 
 
