@@ -4,7 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from math_ai_agent_doc import process_input, call_llama3  # import your function
 from fastapi import UploadFile, File
-import os
+from rag_log_analyzer import build_vectorstore, get_qa_chain
+import os, shutil
 from PyPDF2 import PdfReader
 
 
@@ -24,11 +25,33 @@ app.add_middleware(
 class QueryRequest(BaseModel):
     query: str
 
+'''
 @app.post("/ask")
 async def ask_agent(req: QueryRequest):
     response = process_input(req.query)
     return {"response": response}
+'''
 
+@app.post("/ask")
+#async def ask(query: dict):
+async def ask(req: QueryRequest):
+    #question = query.get("query", "").lower()
+    question = req.query.lower()
+
+    # Heuristics to detect if it's a log-related query
+    log_keywords = ["log", "error", "stacktrace", "traceback", "exception", "debug", "crash", "warning", "failure"]
+
+    if any(kw in question for kw in log_keywords):
+        # Use RAG for log-related query
+        qa = get_qa_chain()
+        result = qa.run(question)
+    else:
+        # Fall back to LLM response
+        #llm = Ollama(model="llama3")
+        #result = llm.invoke(question)
+        result = process_input(req.query)
+
+    return {"response": result}
 
 
 def extract_text(file_path: str) -> str:
@@ -55,5 +78,18 @@ async def upload_file(file: UploadFile = File(...)):
 
     return {"summary": summary.strip()}
 
+@app.post("/upload-log")
+async def upload_log(file: UploadFile = File(...)):
+    filepath = f"logs/{file.filename}"
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
 
+    build_vectorstore(filepath)
+    return {"summary": f"{file.filename} uploaded and indexed successfully."}
 
+@app.post("/analyze-log")
+async def analyze_log(query: dict):
+    question = query.get("query", "")
+    qa = get_qa_chain()
+    result = qa.run(question)
+    return {"response": result}
