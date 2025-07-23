@@ -7,7 +7,7 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [botThinking, setBotThinking] = useState(false);
-  //const [logUploaded, setLogUploaded] = useState(false);
+  const [logUploaded, setLogUploaded] = useState(false);
   const chatEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -32,8 +32,7 @@ function App() {
     setBotThinking(true);
 
     try {
-      //const endpoint = logUploaded ? "http://localhost:8000/ask" : "http://localhost:8000/ask";
-      const endpoint = "http://localhost:8000/ask";
+      const endpoint = logUploaded ? "http://localhost:8000/ask-log" : "http://localhost:8000/ask";
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -74,8 +73,7 @@ function App() {
 
     setIsUploading(true);
     const ext = selectedFile.name.split(".").pop().toLowerCase();
-    //const isLog = ["log", "txt"].includes(ext);
-    const isLog = ["log"].includes(ext);
+    const isLog = ["log", "txt"].includes(ext);
 
     setMessages((prev) => [
       ...prev,
@@ -112,7 +110,7 @@ function App() {
         },
       ]);
 
-      //setLogUploaded(isLog);
+      setLogUploaded(isLog);
     } catch (error) {
       console.error("Upload error:", error);
       setMessages((prev) => [

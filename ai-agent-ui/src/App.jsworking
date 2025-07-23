@@ -1,14 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import "./index.css";
-import logo from "./logo.png"; // Logo image file
+import logo from "./logo.png"; // Make sure logo.png exists in this path
 
 function App() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [botThinking, setBotThinking] = useState(false);
-  //const [logUploaded, setLogUploaded] = useState(false);
-  const chatEndRef = useRef(null);
+  const chatEndRef = useRef(null); 
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -32,14 +31,12 @@ function App() {
     setBotThinking(true);
 
     try {
-      //const endpoint = logUploaded ? "http://localhost:8000/ask" : "http://localhost:8000/ask";
-      const endpoint = "http://localhost:8000/ask";
-      const response = await fetch(endpoint, {
-        method: "POST",
+      const response = await fetch("http://localhost:8000/ask", {
+        method: "POST", 
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ query: userMessage.text }),
+        body: JSON.stringify({ query: input }),
       });
 
       if (!response.ok) throw new Error("Server error");
@@ -73,9 +70,6 @@ function App() {
     if (!selectedFile) return;
 
     setIsUploading(true);
-    const ext = selectedFile.name.split(".").pop().toLowerCase();
-    //const isLog = ["log", "txt"].includes(ext);
-    const isLog = ["log"].includes(ext);
 
     setMessages((prev) => [
       ...prev,
@@ -90,13 +84,10 @@ function App() {
     formData.append("file", selectedFile);
 
     try {
-      const response = await fetch(
-        isLog ? "http://localhost:8000/upload-log" : "http://localhost:8000/upload",
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      const response = await fetch("http://localhost:8000/upload", {
+        method: "POST",
+        body: formData,
+      });
 
       if (!response.ok) throw new Error("Upload failed");
 
@@ -105,14 +96,10 @@ function App() {
         ...prev,
         {
           type: "bot",
-          text:
-            data.summary ||
-            (isLog ? "✅ Log uploaded. Ask me anything!" : "✅ File uploaded and processed successfully."),
+          text: data.summary || "✅ File uploaded and processed successfully.",
           timestamp: new Date().toLocaleTimeString(),
         },
       ]);
-
-      //setLogUploaded(isLog);
     } catch (error) {
       console.error("Upload error:", error);
       setMessages((prev) => [
@@ -133,61 +120,90 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center px-4 py-6 bg-gradient-to-br from-green-100 via-blue-100 to-green-200">
+    <div className="min-h-screen flex flex-col items-center px-4 py-6 bg-gradient-to-br from-red-500 via-green-100 to-blue-200">
       <div className="flex items-center gap-3 mb-4">
-        <img src={logo} alt="Logo" className="w-10 h-10 rounded-full shadow-md" />
-        <h1 className="text-3xl font-bold text-gray-800 drop-shadow-md">Welcome to Open Chat</h1>
+        <img src={logo} alt="Logo" className="w-10 h-10 squared-full shadow-md" />
+        <h1 className="text-3xl font-bold text-gray-900 clean-shadow">Welcome to Open Chat</h1>
       </div>
 
       <div className="w-full max-w-2xl bg-white rounded-2xl shadow-lg p-4 flex flex-col">
-        <div className="h-[60vh] overflow-y-auto space-y-3 px-2">
-          {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex items-start gap-2 ${
-                msg.type === "user" ? "justify-end" : "justify-start"
-              } animate-fade-in-slide`}
-            >
-              {msg.type === "bot" && (
-                <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs">
-                  🤖
-                </div>
-              )}
-              <div>
-                <div
-                  className={`px-4 py-2 rounded-xl max-w-sm relative ${
-                    msg.type === "user"
-                      ? "bg-blue-600 text-white rounded-tr-none"
-                      : "bg-gray-200 text-gray-800 rounded-tl-none"
-                  }`}
-                >
-                  {msg.text}
-                </div>
-                <span className="text-xs text-gray-500 mt-1 block">
-                  {msg.timestamp}
-                </span>
-              </div>
-              {msg.type === "user" && (
-                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">
-                  😊
-                </div>
-              )}
-            </div>
-          ))}
 
-          {isUploading && (
-            <div className="text-sm text-gray-600 italic mt-2 animate-fade-in-slide">
-              📤 Uploading...
-            </div>
-          )}
-          {botThinking && (
-            <div className="text-sm text-gray-600 italic mt-2 animate-fade-in-slide">
-              🤖 Bot is typing...
-            </div>
-          )}
 
-          <div ref={chatEndRef} />
+<div className="h-[60vh] overflow-y-auto space-y-4 px-2">
+ 
+{messages.map((msg, idx) => (
+  <div
+    key={idx}
+    className={`flex ${msg.type === "user" ? "justify-end" : "justify-start"} 
+      ${msg.type === "user" ? "animate-fade-right" : "animate-fade-left"}`}
+  >
+    <div className={`flex items-end ${msg.type === "user" ? "flex-row-reverse" : "flex-row"} gap-2`}>
+      
+      {/* Avatar */}
+      <div className="flex-shrink-0">
+        {msg.type === "user" ? (
+          <svg className="w-8 h-8 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 12c2.67 0 8 1.34 8 4v2H4v-2c0-2.66 5.33-4 8-4zm0-2a4 4 0 100-8 4 4 0 000 8z" />
+          </svg>
+        ) : (
+          <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 3C7 3 2 7 2 12c0 2.3 1 4.4 2.7 6.1L4 21l2.9-.7C9.6 21 10.8 21 12 21c5 0 10-4 10-9s-5-9-10-9z" />
+          </svg>
+        )}
+      </div>
+
+      {/* Bubble and tail */}
+      <div className="flex flex-col items-start max-w-xs">
+        <div className="relative">
+          <div
+            className={`px-4 py-2 rounded-xl break-words ${
+              msg.type === "user"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 text-gray-800"
+            }`}
+          >
+            {msg.text}
+          </div>
+
+          {/* Bubble tail */}
+          <div
+            className={`absolute top-2 w-0 h-0 border-t-8 border-b-8 ${
+              msg.type === "user"
+                ? "border-l-8 border-l-blue-600 right-[-8px] border-transparent"
+                : "border-r-8 border-r-gray-200 left-[-8px] border-transparent"
+            }`}
+          ></div>
         </div>
+
+        {/* Timestamp */}
+        <span
+          className={`text-xs text-gray-500 mt-1 ${
+            msg.type === "user" ? "self-end" : "self-start"
+          }`}
+        >
+          {msg.timestamp}
+        </span>
+      </div>
+    </div>
+  </div>
+))}
+
+
+
+
+  {/* Status Messages */}
+  {isUploading && (
+    <div className="text-sm text-gray-600 italic mt-2 animate-pulse">📤 Uploading and Summarizing...</div>
+  )}
+  {botThinking && (
+    <div className="text-sm text-gray-600 italic mt-2 animate-pulse">
+      🤖 Bot is typing...
+    </div>
+  )}
+
+  <div ref={chatEndRef} />
+</div>
+
 
         <div className="flex items-center gap-2 mt-4">
           <input
