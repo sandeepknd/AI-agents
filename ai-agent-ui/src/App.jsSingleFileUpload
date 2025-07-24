@@ -2,8 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import "./index.css";
 import logo from "./logo.png"; // Logo image file
 import TypingDots from "./TypingDots";
-import ReactMarkdown from "react-markdown";
-
 
 function App() {
   const [input, setInput] = useState("");
@@ -73,66 +71,32 @@ function App() {
   };
 
   const handleUpload = async (e) => {
-    const selectedFiles = Array.from(e.target.files);
-    if (selectedFiles.length === 0) return;
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
+
+    const ext = selectedFile.name.split(".").pop().toLowerCase();
+    //const isLog = ["log", "txt"].includes(ext);
+    const isLog = ["log"].includes(ext);
+
+    const endpoint = isLog ? "http://localhost:8000/upload-log" : "http://localhost:8000/upload";
+
+    // Set message accordingly
+    setUploadMessage(isLog ? "📤 Uploading " : "📤 Uploaded and analyzing ");
     setIsUploading(true);
 
-    // If all files are .log, treat as consolidated log upload
-    const allAreLogs = selectedFiles.every(file => file.name.endsWith(".log"));
-    const endpoint = allAreLogs ? "http://localhost:8000/upload-log" : "http://localhost:8000/upload";
+    setMessages((prev) => [
+      ...prev,
+      {
+        type: "user",
+        text: `📄 Uploaded: ${selectedFile.name}`,
+        timestamp: new Date().toLocaleTimeString(),
+      },
+    ]);
 
-      // Show appropriate message
-    setUploadMessage(
-    allAreLogs
-      ? "📤 Uploading multiple log(s)..."
-      : "📤 Uploaded and analyzing..."
-  );
+    const formData = new FormData();
+    formData.append("file", selectedFile);
 
-    //const selectedFile = e.target.files[0];
-    //if (!selectedFile) return;
-
-    // // const ext = selectedFile.name.split(".").pop().toLowerCase();
-    //const isLog = ["log", "txt"].includes(ext);
-    //const isLog = ["log"].includes(ext);
-
-    // const endpoint = isLog ? "http://localhost:8000/upload-log" : "http://localhost:8000/upload";
-
-    // // Set message accordingly
-    //setUploadMessage(isLog ? "📤 Uploading " : "📤 Uploaded and analyzing ");
-    // //setIsUploading(true);
-
-    //setMessages((prev) => [
-     // ...prev,
-      //{
-       // type: "user",
-        //text: `📄 Uploaded: ${selectedFile.name}`,
-        //timestamp: new Date().toLocaleTimeString(),
-      //},
-    //]);
-
-
-  // Show file names in chat
-  setMessages((prev) => [
-    ...prev,
-    {
-      type: "user",
-      text: `📄 Uploaded: ${selectedFiles.map(f => f.name).join(", ")}`,
-      timestamp: new Date().toLocaleTimeString(),
-    },
-  ]);
-
-
-
-    //const formData = new FormData();
-    //formData.append("file", selectedFile);
-
-
-
-  try {
-    for (const file of selectedFiles) {
-      const formData = new FormData();
-      formData.append("file", file);
-
+    try {
       const response = await fetch(endpoint, {
         method: "POST",
         body: formData,
@@ -141,32 +105,33 @@ function App() {
       if (!response.ok) throw new Error("Upload failed");
 
       const data = await response.json();
-
       setMessages((prev) => [
         ...prev,
         {
           type: "bot",
-          text: data.summary || "✅ File uploaded.",
+          text:
+            data.summary ||
+            (isLog ? "✅ Log uploaded. Ask me anything!" : "✅ File uploaded and processed successfully."),
           timestamp: new Date().toLocaleTimeString(),
         },
       ]);
-    }
-  } catch (error) {
-    console.error("Upload error:", error);
-    setMessages((prev) => [
-      ...prev,
-      {
-        type: "bot",
-        text: "❌ Upload failed. Please try again.",
-        timestamp: new Date().toLocaleTimeString(),
-      },
-    ]);
-  } finally {
-    setIsUploading(false);
-    setUploadMessage("");
-  }
-};
 
+      //setLogUploaded(isLog);
+    } catch (error) {
+      console.error("Upload error:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "bot",
+          text: "❌ Upload failed. Please try again.",
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ]);
+    } finally {
+      setIsUploading(false);
+      setUploadMessage(""); // Clear upload message
+    }
+  };
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter") sendMessage();
@@ -201,7 +166,7 @@ function App() {
                       : "bg-gray-200 text-gray-800 rounded-tl-none"
                   }`}
                 >
-		  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  {msg.text}
                 </div>
                 <span 
 		    className={`text-xs text-gray-500 mt-1 block ${
@@ -252,7 +217,7 @@ function App() {
           </button>
           <label className="cursor-pointer px-4 py-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700">
             Upload
-            <input type="file" multiple onChange={handleUpload} hidden />
+            <input type="file" onChange={handleUpload} hidden />
           </label>
         </div>
       </div>
