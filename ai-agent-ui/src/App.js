@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import "./index.css";
 import logo from "./logo.png"; // Logo image file
+import TypingDots from "./TypingDots";
 
 function App() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [botThinking, setBotThinking] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState("");
   //const [logUploaded, setLogUploaded] = useState(false);
   const chatEndRef = useRef(null);
 
@@ -72,10 +74,15 @@ function App() {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
 
-    setIsUploading(true);
     const ext = selectedFile.name.split(".").pop().toLowerCase();
     //const isLog = ["log", "txt"].includes(ext);
     const isLog = ["log"].includes(ext);
+
+    const endpoint = isLog ? "http://localhost:8000/upload-log" : "http://localhost:8000/upload";
+
+    // Set message accordingly
+    setUploadMessage(isLog ? "📤 Uploading " : "📤 Uploaded and analyzing ");
+    setIsUploading(true);
 
     setMessages((prev) => [
       ...prev,
@@ -90,13 +97,10 @@ function App() {
     formData.append("file", selectedFile);
 
     try {
-      const response = await fetch(
-        isLog ? "http://localhost:8000/upload-log" : "http://localhost:8000/upload",
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      const response = await fetch(endpoint, {
+        method: "POST",
+        body: formData,
+      });
 
       if (!response.ok) throw new Error("Upload failed");
 
@@ -125,6 +129,7 @@ function App() {
       ]);
     } finally {
       setIsUploading(false);
+      setUploadMessage(""); // Clear upload message
     }
   };
 
@@ -163,7 +168,11 @@ function App() {
                 >
                   {msg.text}
                 </div>
-                <span className="text-xs text-gray-500 mt-1 block">
+                <span 
+		    className={`text-xs text-gray-500 mt-1 block ${
+    			msg.type === "user" ? "text-right" : "text-left"
+  			}`}
+			>
                   {msg.timestamp}
                 </span>
               </div>
@@ -175,14 +184,16 @@ function App() {
             </div>
           ))}
 
-          {isUploading && (
-            <div className="text-sm text-gray-600 italic mt-2 animate-fade-in-slide">
-              📤 Uploading...
+          {isUploading && uploadMessage && (
+            <div className="text-sm text-gray-600 italic mt-2 animate-pulse">
+		<span>{uploadMessage}</span>
+    		<TypingDots />
             </div>
           )}
           {botThinking && (
-            <div className="text-sm text-gray-600 italic mt-2 animate-fade-in-slide">
-              🤖 Bot is typing...
+	     <div className="inline-flex items-center gap-2 text-sm text-gray-600 italic mt-2 animate-pulse">
+		<span className="text-gray-600 text-sm">🤖 Bot is typing </span>
+	  	<TypingDots />
             </div>
           )}
 
