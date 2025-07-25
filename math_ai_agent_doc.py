@@ -6,6 +6,12 @@ import subprocess
 import sys
 from pathlib import Path
 from PyPDF2 import PdfReader
+import smtplib
+from email.message import EmailMessage
+import re
+from email.mime.text import MIMEText
+import base64
+from gmail_auth import get_gmail_service
 
 import requests
 LLM_URL     = "http://localhost:11434"
@@ -57,6 +63,35 @@ def analyze_document(path):
     response = call_llama3(prompt)
     return response.strip()
 
+def send_email(to_address: str, subject: str, body: str):
+    service = get_gmail_service()
+
+    message = MIMEText(body)
+    message['to'] = to_address
+    message['from'] = "me"
+    message['subject'] = subject
+
+    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+    message_body = {'raw': raw}
+
+    send_result = service.users().messages().send(userId="me", body=message_body).execute()
+    print("send_result is {}".format(send_result))
+    return f"✅ Email sent! ID: {send_result['id']}"
+
+def email_agent(query: str) -> str:
+    # Updated regex with non-greedy and greedy match groups
+    pattern = r"send email to (?P<to>.+?) subject (?P<subject>.+) body (?P<body>.+)"
+    match = re.match(pattern, query, re.IGNORECASE)
+    if not match:
+        return "❌ Could not parse the email format. Use: send email to [recipient] subject [subject] body [message]."
+
+    try:
+        to = match.group("to").strip()
+        subject = match.group("subject").strip()
+        body = match.group("body").strip()
+        return send_email(to, subject, body)
+    except Exception as e:
+        return f"❌ Failed to send email: {str(e)}"
 
 # === STEP 2: Define tool registry ===
 tool_registry = {
@@ -65,6 +100,7 @@ tool_registry = {
     "multiply": multiply,
     "divide": divide,
     "get_weather": get_weather,
+    "email_agent": email_agent,
     "analyze_document": analyze_document
 }
 
@@ -93,6 +129,7 @@ def process_input(user_query):
         " divide(a: number, b: number) : returns the result of division"
         " get_weather(city: string) : returns the weather of the city passed as a parameter."
         " analyze_document(path: string) : analyzes or summarizes a text or PDF document from the specified file path."
+        " email_agent(query: string) : sends email to the mentioned recipients with subject and body."
         "\nIf there is no available tool for the respective user input, then just return { \"tool\": null, \"args\": { \"query\": \"...\" } }"
         "\nONLY return a valid JSON. No explanation, no markdown."
     )
@@ -108,7 +145,7 @@ def process_input(user_query):
 
         if tool_name in tool_registry:
             result = tool_registry[tool_name](**args)
-            print("✅ Tool '{tool_name}' returned: {result}")
+            print("✅ Tool {} returned: {}".format(tool_name, result))
             return f"{result}"
 
         elif tool_name is None:
@@ -135,4 +172,3 @@ if __name__ == "__main__":
         if user_input.strip().lower() in ["exit", "quit"]:
             break
         process_input(user_input)
-
