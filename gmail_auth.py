@@ -9,6 +9,7 @@ from googleapiclient.discovery import build
 SCOPES = ['https://www.googleapis.com/auth/gmail.send']
 
 
+
 def get_gmail_service():
     creds = None
 
