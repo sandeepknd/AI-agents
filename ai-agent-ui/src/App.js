@@ -4,7 +4,7 @@ import logo from "./logo.png";
 import TypingDots from "./TypingDots";
 import ReactMarkdown from "react-markdown";
 
-// Voice Recognition
+// Voice Input Recognition with auto send
 const SpeechRecognition =
   window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -35,6 +35,55 @@ function App() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, botThinking, isUploading]);
+
+const sendMessageWithText = async (text) => {
+  if (!text.trim()) return;
+
+  const userMessage = {
+    type: "user",
+    text: text,
+    timestamp: new Date().toLocaleTimeString(),
+  };
+
+  setMessages((prev) => [...prev, userMessage]);
+  setInput("");
+  setBotThinking(true);
+
+  try {
+    const response = await fetch("http://localhost:8000/ask", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query: text }),
+    });
+
+    if (!response.ok) throw new Error("Server error");
+
+    const data = await response.json();
+    setMessages((prev) => [
+      ...prev,
+      {
+        type: "bot",
+        text: data.response || "🤖 No response.",
+        timestamp: new Date().toLocaleTimeString(),
+      },
+    ]);
+  } catch (error) {
+    console.error("Chat error:", error);
+    setMessages((prev) => [
+      ...prev,
+      {
+        type: "bot",
+        text: "❌ Failed to get a response from server.",
+        timestamp: new Date().toLocaleTimeString(),
+      },
+    ]);
+  } finally {
+    setBotThinking(false);
+  }
+};
+
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -93,18 +142,18 @@ const startListening = () => {
 
   recognition.onresult = (event) => {
     const transcript = event.results[event.results.length - 1][0].transcript;
-    setInput((prev) => (prev + " " + transcript).trim());
+    const newInput = (input + " " + transcript).trim();
+    setInput(newInput);
 
-    // Reset timer if user continues talking
     if (autoSendTimer) clearTimeout(autoSendTimer);
 
-    // Start 2-second timer after last detected speech
     const timer = setTimeout(() => {
-      stopListening(); // stop recognition first
-      if (input.trim()) {
-        sendMessage(); // auto-send message
+      stopListening();
+      if (newInput.trim()) {
+        sendMessageWithText(newInput); // ✅ Pass the final text explicitly
       }
-    }, 2000); // 2 seconds pause
+    }, 2000);
+
     setAutoSendTimer(timer);
   };
 
@@ -113,6 +162,7 @@ const startListening = () => {
     setListening(false);
   };
 };
+
 
 const stopListening = () => {
   recognition?.stop();
