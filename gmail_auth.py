@@ -7,6 +7,8 @@ from googleapiclient.discovery import build
 
 # Scopes: Full Gmail access
 SCOPES = ['https://www.googleapis.com/auth/gmail.send']
+MAIL_TOKEN = 'token_mail.pickle'
+MAIL_CREDENTIALS = 'credentials_rh_mail.json'
 
 
 
@@ -14,8 +16,8 @@ def get_gmail_service():
     creds = None
 
     # Load token if available
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
+    if os.path.exists(MAIL_TOKEN):
+        with open(MAIL_TOKEN, 'rb') as token:
             creds = pickle.load(token)
 
     # If no valid token, start OAuth
@@ -24,10 +26,10 @@ def get_gmail_service():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
+                MAIL_CREDENTIALS, SCOPES)
             creds = flow.run_local_server(port=0)
 
-        with open('token.pickle', 'wb') as token:
+        with open(MAIL_TOKEN, 'wb') as token:
             pickle.dump(creds, token)
 
     return build('gmail', 'v1', credentials=creds)
