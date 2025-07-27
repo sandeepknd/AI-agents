@@ -4,14 +4,14 @@ import logo from "./logo.png";
 import TypingDots from "./TypingDots";
 import ReactMarkdown from "react-markdown";
 
-// 🆕 Add support for voice recognition
+// Voice Recognition
 const SpeechRecognition =
   window.SpeechRecognition || window.webkitSpeechRecognition;
 
 let recognition;
 if (SpeechRecognition) {
   recognition = new SpeechRecognition();
-  recognition.continuous = false;
+  recognition.continuous = true; // allows detecting pauses
   recognition.lang = "en-US";
 } else {
   alert("Speech recognition not supported in this browser.");
@@ -23,7 +23,9 @@ function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [botThinking, setBotThinking] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
-  const [listening, setListening] = useState(false); // 🆕 For mic button
+  const [listening, setListening] = useState(false);
+  const [autoSendTimer, setAutoSendTimer] = useState(null);
+
   const chatEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -33,32 +35,6 @@ function App() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, botThinking, isUploading]);
-
-  // 🆕 Voice input handlers
-  const startListening = () => {
-    if (!recognition) return;
-    setListening(true);
-    recognition.start();
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setInput((prev) => prev + " " + transcript);
-      setListening(false);
-    };
-    recognition.onerror = (event) => {
-      console.error("Speech recognition error:", event.error);
-      setListening(false);
-    };
-  };
-
-  const stopListening = () => {
-    recognition?.stop();
-    setListening(false);
-  };
-
-  const toggleMic = () => {
-    if (listening) stopListening();
-    else startListening();
-  };
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -109,13 +85,55 @@ function App() {
     }
   };
 
+  // ✅ Voice input with auto-send after 2s of silence
+const startListening = () => {
+  if (!recognition) return;
+  setListening(true);
+  recognition.start();
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[event.results.length - 1][0].transcript;
+    setInput((prev) => (prev + " " + transcript).trim());
+
+    // Reset timer if user continues talking
+    if (autoSendTimer) clearTimeout(autoSendTimer);
+
+    // Start 2-second timer after last detected speech
+    const timer = setTimeout(() => {
+      stopListening(); // stop recognition first
+      if (input.trim()) {
+        sendMessage(); // auto-send message
+      }
+    }, 2000); // 2 seconds pause
+    setAutoSendTimer(timer);
+  };
+
+  recognition.onerror = (event) => {
+    console.error("Speech recognition error:", event.error);
+    setListening(false);
+  };
+};
+
+const stopListening = () => {
+  recognition?.stop();
+  setListening(false);
+  if (autoSendTimer) clearTimeout(autoSendTimer);
+};
+
+  const toggleMic = () => {
+    if (listening) stopListening();
+    else startListening();
+  };
+
   const handleUpload = async (e) => {
     const selectedFiles = Array.from(e.target.files);
     if (selectedFiles.length === 0) return;
     setIsUploading(true);
 
-    const allAreLogs = selectedFiles.every(file => file.name.endsWith(".log"));
-    const endpoint = allAreLogs ? "http://localhost:8000/upload-log" : "http://localhost:8000/upload";
+    const allAreLogs = selectedFiles.every((file) => file.name.endsWith(".log"));
+    const endpoint = allAreLogs
+      ? "http://localhost:8000/upload-log"
+      : "http://localhost:8000/upload";
 
     setUploadMessage(
       allAreLogs
@@ -127,7 +145,7 @@ function App() {
       ...prev,
       {
         type: "user",
-        text: `📄 Uploaded: ${selectedFiles.map(f => f.name).join(", ")}`,
+        text: `📄 Uploaded: ${selectedFiles.map((f) => f.name).join(", ")}`,
         timestamp: new Date().toLocaleTimeString(),
       },
     ]);
@@ -179,7 +197,9 @@ function App() {
     <div className="min-h-screen flex flex-col items-center px-4 py-6 bg-gradient-to-br from-green-100 via-blue-100 to-green-200">
       <div className="flex items-center gap-3 mb-4">
         <img src={logo} alt="Logo" className="w-10 h-10 rounded-full shadow-md" />
-        <h1 className="text-3xl font-bold text-gray-800 drop-shadow-md">Welcome to Open Chat</h1>
+        <h1 className="text-3xl font-bold text-gray-800 drop-shadow-md">
+          Welcome to Open Chat
+        </h1>
       </div>
 
       <div className="w-full max-w-2xl bg-white rounded-2xl shadow-lg p-4 flex flex-col">
@@ -248,15 +268,15 @@ function App() {
             className="flex-grow px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
 
-          {/* 🆕 Mic button */}
+          {/* Mic button with animated indicator */}
           <button
             onClick={toggleMic}
-            className={`px-3 py-2 rounded-full text-white transition-all ${
-              listening ? "bg-red-500" : "bg-yellow-500"
+            className={`px-3 py-2 rounded-full text-white flex items-center gap-2 transition-all ${
+              listening ? "bg-red-500 animate-pulse" : "bg-yellow-500"
             }`}
             title={listening ? "Stop Listening" : "Start Voice Input"}
           >
-            🎙️
+            🎙️ {listening && <span className="text-xs">Listening...</span>}
           </button>
 
           <button
@@ -276,3 +296,4 @@ function App() {
 }
 
 export default App;
+
