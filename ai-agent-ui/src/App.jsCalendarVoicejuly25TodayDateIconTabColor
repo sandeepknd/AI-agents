@@ -499,35 +499,48 @@ function App() {
             </button>
           </div>
 
-          {/* Display Events */}
-          {events.length > 0 ? (
-            <div className="space-y-3">
-              {events.map((event, idx) => (
-                <div
-                  key={idx}
-                  className="rounded-xl p-4 shadow-md bg-gradient-to-r from-green-200 via-blue-200 to-purple-200"
-                >
-                  <h4 className="font-bold text-gray-800">
-                    {event.summary || "No Title"}
-                  </h4>
-                  {event.start && event.end ? (
-                    <>
-                      <p className="text-sm text-gray-700">
-                        Start: {new Date(event.start).toLocaleString()}
-                      </p>
-                      <p className="text-sm text-gray-700">
-                        End: {new Date(event.end).toLocaleString()}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-gray-500 italic">Loading ...</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 italic">No events to display.</p>
-          )}
+	      {/* Display Events */}
+	      {events.length > 0 ? (
+		      <div className="space-y-3">
+		      {events.map((event, idx) => (
+			      <div
+			      key={idx}
+			      className="rounded-xl p-4 shadow-md bg-gradient-to-r from-green-200 via-blue-200 to-purple-200"
+			      >
+			      <h4 className="font-bold text-gray-800">
+			      {event.summary || "No Title"}
+			      </h4>
+			      {event.start && event.end && (
+				      <>
+				      <p className="text-sm text-gray-700">
+				      📅 Start: {new Date(event.start).toLocaleString()}
+				      </p>
+				      <p className="text-sm text-gray-700">
+				      ⏳ End: {new Date(event.end).toLocaleString()}
+				      </p>
+				      </>
+			      )}
+			      {event.link && (
+				      <p className="text-blue-600 underline mt-1">
+				      <a href={event.link} target="_blank" rel="noopener noreferrer">
+				      🔗 Join Meeting
+				      </a>
+				      </p>
+			      )}
+			      {event.location && (
+				      <p className="text-sm text-gray-700">📍 Location: {event.location}</p>
+			      )}
+			      {event.attendees && event.attendees.length > 0 && (
+				      <p className="text-sm text-gray-700">
+				      👥 Attendees: {event.attendees.join(", ")}
+				      </p>
+			      )}
+			      </div>
+		      ))}
+		      </div>
+	      ) : (
+		      <p className="text-gray-500 italic">No events to display.</p>
+	      )}
 
           {/* Schedule Meeting */}
           <div className="mt-6">
