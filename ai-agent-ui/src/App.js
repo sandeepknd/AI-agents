@@ -471,7 +471,7 @@ function App() {
             <button
               onClick={toggleMic}
               className={`px-4 py-2 rounded-full text-white ${
-                listening ? "bg-red-500 animate-pulse" : "bg-yellow-500"
+                listening ? "bg-red-500 animate-pulse" : "bg-gradient-to-r from-yellow-600 to-yellow-200"
               }`}
             >
               🎙
@@ -493,7 +493,7 @@ function App() {
                 const data = await res.json();
                 setEvents(data.events || []);
               }}
-              className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition"
+              className="bg-gradient-to-r from-blue-800 to-blue-400 text-white px-4 py-2 rounded hover:bg-blue-900 transition"
             >
               Fetch Events
             </button>
@@ -591,7 +591,7 @@ function App() {
                 const data = await res.json();
                 alert(data.message || "Meeting scheduled!");
               }}
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+              className="bg-gradient-to-r from-green-800 to-green-400 text-white px-4 py-2 rounded hover:bg-gray-800 transition"
             >
               Schedule
             </button>

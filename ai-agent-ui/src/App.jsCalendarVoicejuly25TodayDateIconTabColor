@@ -471,7 +471,7 @@ function App() {
             <button
               onClick={toggleMic}
               className={`px-4 py-2 rounded-full text-white ${
-                listening ? "bg-red-500 animate-pulse" : "bg-yellow-500"
+                listening ? "bg-red-500 animate-pulse" : "bg-gradient-to-r from-yellow-600 to-yellow-200"
               }`}
             >
               🎙
@@ -493,54 +493,67 @@ function App() {
                 const data = await res.json();
                 setEvents(data.events || []);
               }}
-              className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition"
+              className="bg-gradient-to-r from-blue-800 to-blue-400 text-white px-4 py-2 rounded hover:bg-blue-900 transition"
             >
               Fetch Events
             </button>
           </div>
 
-	      {/* Display Events */}
-	      {events.length > 0 ? (
-		      <div className="space-y-3">
-		      {events.map((event, idx) => (
-			      <div
-			      key={idx}
-			      className="rounded-xl p-4 shadow-md bg-gradient-to-r from-green-200 via-blue-200 to-purple-200"
-			      >
-			      <h4 className="font-bold text-gray-800">
-			      {event.summary || "No Title"}
-			      </h4>
-			      {event.start && event.end && (
-				      <>
-				      <p className="text-sm text-gray-700">
-				      📅 Start: {new Date(event.start).toLocaleString()}
-				      </p>
-				      <p className="text-sm text-gray-700">
-				      ⏳ End: {new Date(event.end).toLocaleString()}
-				      </p>
-				      </>
-			      )}
-			      {event.link && (
-				      <p className="text-blue-600 underline mt-1">
-				      <a href={event.link} target="_blank" rel="noopener noreferrer">
-				      🔗 Join Meeting
-				      </a>
-				      </p>
-			      )}
-			      {event.location && (
-				      <p className="text-sm text-gray-700">📍 Location: {event.location}</p>
-			      )}
-			      {event.attendees && event.attendees.length > 0 && (
-				      <p className="text-sm text-gray-700">
-				      👥 Attendees: {event.attendees.join(", ")}
-				      </p>
-			      )}
-			      </div>
-		      ))}
-		      </div>
-	      ) : (
-		      <p className="text-gray-500 italic">No events to display.</p>
-	      )}
+{/* Display Events */}
+{events.length > 0 ? (
+  <div className="space-y-3">
+    {events.map((event, idx) => {
+      const eventDate = new Date(event.start);
+      const day = eventDate.getDate();
+      const month = eventDate.toLocaleString("en-US", { month: "short" }); // e.g., Jul
+
+      return (
+        <div
+          key={idx}
+          className="rounded-xl p-4 shadow-md bg-gradient-to-r from-green-200 via-blue-200 to-purple-200 flex items-start gap-4"
+        >
+          {/* Calendar Icon */}
+          <div className="w-14 h-14 bg-white shadow-md rounded-lg flex flex-col items-center justify-center border border-gray-300">
+	      <span className="bg-red-500 text-white text-xs font-bold w-full text-center rounded-t-lg uppercase">{month}</span>
+	      <span className="text-lg font-bold text-gray-800">{day}</span>
+          </div>
+
+          {/* Event Details */}
+          <div className="flex-1">
+            <h4 className="font-bold text-gray-800">{event.summary || "No Title"}</h4>
+            {event.start && event.end && (
+              <>
+                <p className="text-sm text-gray-700">
+                  📅 Start: {new Date(event.start).toLocaleString()}
+                </p>
+                <p className="text-sm text-gray-700">
+                  ⏳ End: {new Date(event.end).toLocaleString()}
+                </p>
+              </>
+            )}
+            {event.link && (
+              <p className="text-blue-600 underline mt-1">
+                <a href={event.link} target="_blank" rel="noopener noreferrer">
+                  🔗 Join Meeting
+                </a>
+              </p>
+            )}
+            {event.location && (
+              <p className="text-sm text-gray-700">📍 Location: {event.location}</p>
+            )}
+            {event.attendees && event.attendees.length > 0 && (
+              <p className="text-sm text-gray-700">
+                👥 Attendees: {event.attendees.join(", ")}
+              </p>
+            )}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+) : (
+  <p className="text-gray-500 italic">No events to display.</p>
+)}
 
           {/* Schedule Meeting */}
           <div className="mt-6">
@@ -578,7 +591,7 @@ function App() {
                 const data = await res.json();
                 alert(data.message || "Meeting scheduled!");
               }}
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+              className="bg-gradient-to-r from-green-800 to-green-400 text-white px-4 py-2 rounded hover:bg-gray-800 transition"
             >
               Schedule
             </button>
