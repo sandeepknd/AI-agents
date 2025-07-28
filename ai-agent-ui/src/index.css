@@ -19,3 +19,17 @@
 .animate-fade-in-slide {
   animation: fadeInSlideUp 0.4s ease-out forwards;
 }
+
+@keyframes fadeIn {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideIn {
+  0% { opacity: 0; transform: translateX(-20px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+.animate-fade-in { animation: fadeIn 1s ease-in-out; }
+.animate-slide-in { animation: slideIn 1s ease-in-out; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-400 { animation-delay: 0.4s; }
+
