@@ -1,0 +1,568 @@
+import React, { useEffect, useRef, useState } from "react";
+import "./index.css";
+import logo from "./logo.png";
+import TypingDots from "./TypingDots";
+import ReactMarkdown from "react-markdown";
+import { parse, format } from "date-fns"; // npm install date-fns
+
+// Voice Input Recognition with auto send
+const SpeechRecognition =
+  window.SpeechRecognition || window.webkitSpeechRecognition;
+
+let recognition;
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.continuous = true; // allows detecting pauses
+  recognition.lang = "en-US";
+} else {
+  alert("Speech recognition not supported in this browser.");
+}
+
+function App() {
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [botThinking, setBotThinking] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState("");
+  const [listening, setListening] = useState(false);
+  const [autoSendTimer, setAutoSendTimer] = useState(null);
+
+  const [activeTab, setActiveTab] = useState("Chat");
+  const [calendarDate, setCalendarDate] = useState("");
+  const [meetingTitle, setMeetingTitle] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [events, setEvents] = useState([]);
+
+  const chatEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, botThinking, isUploading]);
+
+  const sendMessageWithText = async (text) => {
+    if (!text.trim()) return;
+
+    const userMessage = {
+      type: "user",
+      text: text,
+      timestamp: new Date().toLocaleTimeString(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setBotThinking(true);
+
+    try {
+      const response = await fetch("http://localhost:8000/ask", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query: text }),
+      });
+
+      if (!response.ok) throw new Error("Server error");
+
+      const data = await response.json();
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "bot",
+          text: data.response || "🤖 No response.",
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ]);
+    } catch (error) {
+      console.error("Chat error:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "bot",
+          text: "❌ Failed to get a response from server.",
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ]);
+    } finally {
+      setBotThinking(false);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+
+    const userMessage = {
+      type: "user",
+      text: input,
+      timestamp: new Date().toLocaleTimeString(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setBotThinking(true);
+
+    try {
+      const endpoint = "http://localhost:8000/ask";
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query: userMessage.text }),
+      });
+
+      if (!response.ok) throw new Error("Server error");
+
+      const data = await response.json();
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "bot",
+          text: data.response || "🤖 No response.",
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ]);
+    } catch (error) {
+      console.error("Chat error:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "bot",
+          text: "❌ Failed to get a response from server.",
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ]);
+    } finally {
+      setBotThinking(false);
+    }
+  };
+
+  // ✅ Voice input with auto-send after 2s of silence
+const startListening = () => {
+  if (!recognition) return;
+  setListening(true);
+  recognition.start();
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[event.results.length - 1][0].transcript.trim();
+    console.log("Voice Input:", transcript);
+
+    if (activeTab === "Calendar") {
+      const lowerText = transcript.toLowerCase();
+      let date = null;
+
+      if (lowerText.includes("today")) {
+        date = new Date();
+      } else if (lowerText.includes("tomorrow")) {
+        date = new Date();
+        date.setDate(date.getDate() + 1);
+      } else {
+        const match = lowerText.match(/(\b\w+\s\d{1,2}\b)/); // e.g., July 30
+        if (match) {
+          try {
+            date = parse(match[0], "MMMM d", new Date());
+          } catch (err) {
+            console.error("Date parse error:", err);
+          }
+        }
+      }
+
+      if (date) {
+        const formattedDate = format(date, "yyyy-MM-dd");
+        console.log("Parsed Date:", formattedDate);
+        setCalendarDate(formattedDate); // ✅ update state every time
+
+        // Show loading indicator
+        setEvents([
+          {
+	    summary: "Fetching events...",
+            start:  "" ,
+            end: "" ,
+          },
+        ]);
+
+        // Fetch events from backend
+// Fetch events from backend
+fetch(`http://localhost:8000/get-events-by-date?date=${formattedDate}`)
+  .then((res) => {
+    if (!res.ok) throw new Error("Failed to fetch events");
+    return res.json();
+  })
+  .then((data) => {
+    if (data.events && data.events.length > 0) {
+      setEvents(data.events);
+    } else {
+      setEvents([]); // No events
+    }
+  })
+  .catch((error) => {
+    console.error("Error fetching events:", error);
+    setEvents([]); // Show "No events" message
+  });
+
+
+        stopListening();
+        return; // ✅ skip chat flow
+      }
+    }
+
+    // For Chat auto-send logic
+    setInput(transcript);
+    if (autoSendTimer) clearTimeout(autoSendTimer);
+
+    const timer = setTimeout(() => {
+      stopListening();
+      if (transcript.trim()) {
+        sendMessageWithText(transcript);
+      }
+    }, 2000);
+
+    setAutoSendTimer(timer);
+  };
+
+  recognition.onerror = (event) => {
+    console.error("Speech recognition error:", event.error);
+    setListening(false);
+  };
+};
+
+  const stopListening = () => {
+    recognition?.stop();
+    setListening(false);
+    if (autoSendTimer) clearTimeout(autoSendTimer);
+  };
+
+  const toggleMic = () => {
+    if (listening) stopListening();
+    else startListening();
+  };
+
+  const handleUpload = async (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    if (selectedFiles.length === 0) return;
+    setIsUploading(true);
+
+    const allAreLogs = selectedFiles.every((file) => file.name.endsWith(".log"));
+    const endpoint = allAreLogs
+      ? "http://localhost:8000/upload-log"
+      : "http://localhost:8000/upload";
+
+    setUploadMessage(
+      allAreLogs
+        ? "📤 Uploading multiple log(s)..."
+        : "📤 Uploaded and analyzing..."
+    );
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        type: "user",
+        text: `📄 Uploaded: ${selectedFiles.map((f) => f.name).join(", ")}`,
+        timestamp: new Date().toLocaleTimeString(),
+      },
+    ]);
+
+    try {
+      for (const file of selectedFiles) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch(endpoint, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) throw new Error("Upload failed");
+
+        const data = await response.json();
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "bot",
+            text: data.summary || "✅ File uploaded.",
+            timestamp: new Date().toLocaleTimeString(),
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "bot",
+          text: "❌ Upload failed. Please try again.",
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ]);
+    } finally {
+      setIsUploading(false);
+      setUploadMessage("");
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") sendMessage();
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col items-center px-4 py-6 bg-gradient-to-br from-green-100 via-blue-100 to-green-200">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-4">
+        <img src={logo} alt="Logo" className="w-10 h-10 rounded-full shadow-md" />
+        <h1 className="text-3xl font-bold text-gray-800 drop-shadow-md">
+          Open Chat Dashboard
+        </h1>
+      </div>
+
+      {/* Tabs */}
+      <div className="w-full max-w-3xl flex justify-center gap-4 mb-6">
+        {["Chat", "Logs", "Calendar"].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-6 py-2 rounded-full font-semibold text-white transition ${
+              activeTab === tab
+                ? "bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 shadow-lg"
+                : "bg-gray-400 hover:bg-gray-500"
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      <div className="w-full max-w-3xl">
+        {/* Chat Tab */}
+        {activeTab === "Chat" && (
+          <div className="bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 rounded-2xl shadow-lg p-4 flex flex-col">
+            <div className="h-[60vh] overflow-y-auto space-y-3 px-2">
+              {messages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex items-start gap-2 ${
+                    msg.type === "user" ? "justify-end" : "justify-start"
+                  } animate-fade-in-slide`}
+                >
+                  {msg.type === "bot" && (
+                    <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs">
+                      🤖
+                    </div>
+                  )}
+                  <div>
+                    <div
+                      className={`px-4 py-2 rounded-xl max-w-sm relative ${
+                        msg.type === "user"
+                          ? "bg-blue-600 text-white rounded-tr-none"
+                          : "bg-gray-200 text-gray-800 rounded-tl-none"
+                      }`}
+                    >
+                      <ReactMarkdown>{msg.text}</ReactMarkdown>
+                    </div>
+                    <span
+                      className={`text-xs text-gray-500 mt-1 block ${
+                        msg.type === "user" ? "text-right" : "text-left"
+                      }`}
+                    >
+                      {msg.timestamp}
+                    </span>
+                  </div>
+                  {msg.type === "user" && (
+                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">
+                      😊
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {isUploading && uploadMessage && (
+                <div className="text-sm text-gray-600 italic mt-2 animate-pulse">
+                  <span>{uploadMessage}</span>
+                  <TypingDots />
+                </div>
+              )}
+              {botThinking && (
+                <div className="inline-flex items-center gap-2 text-sm text-gray-600 italic mt-2 animate-pulse">
+                  <span className="text-gray-600 text-sm">🤖 Bot is typing </span>
+                  <TypingDots />
+                </div>
+              )}
+
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Chat Input */}
+            <div className="flex items-center gap-2 mt-4">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Type your message..."
+                className="flex-grow px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+
+              {/* Mic button with animated indicator */}
+              <button
+                onClick={toggleMic}
+                className={`px-3 py-2 rounded-full text-white flex items-center gap-2 transition-all ${
+                  listening ? "bg-red-500 animate-pulse" : "bg-yellow-500"
+                }`}
+                title={listening ? "Stop Listening" : "Start Voice Input"}
+              >
+                🎙️ {listening && <span className="text-xs">Listening...</span>}
+              </button>
+
+              <button
+                onClick={sendMessage}
+                className="px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700"
+              >
+                Send
+              </button>
+              <label className="cursor-pointer px-4 py-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700">
+                Upload
+                <input type="file" multiple onChange={handleUpload} hidden />
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* Logs Tab */}
+        {activeTab === "Logs" && (
+          <div className="bg-gradient-to-br from-yellow-100 via-orange-100 to-red-100 rounded-2xl shadow-lg p-4">
+            <h2 className="text-2xl font-bold mb-4 text-red-700">📜 Log Analyzer</h2>
+            <p className="text-gray-700">Upload logs and analyze them using AI.</p>
+            <label className="mt-4 block cursor-pointer px-4 py-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 w-fit">
+              Upload Logs
+              <input type="file" multiple onChange={handleUpload} hidden />
+            </label>
+          </div>
+        )}
+
+        {/* Calendar Tab */}
+        {activeTab === "Calendar" && (
+          <div className="bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 rounded-2xl shadow-lg p-4">
+            <h2 className="text-2xl font-bold mb-4 text-purple-700">📅 Google Calendar</h2>
+
+            <p className="text-gray-500 italic text-sm mb-3">
+              🎙 Try saying: “display events for tomorrow” or “display events for today” or "display events for july 25"
+            </p>
+
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-gray-600">🎤 Voice commands: “display events for tomorrow”</p>
+              <button
+                onClick={toggleMic}
+                className={`px-4 py-2 rounded-full text-white ${
+                  listening ? "bg-red-500 animate-pulse" : "bg-yellow-500"
+                }`}
+              >
+                🎙
+              </button>
+            </div>
+
+            {/* View Events */}
+            <div className="mb-4">
+              <h3 className="font-medium mb-2 text-blue-700">View Events</h3>
+              <input
+                type="date"
+                value={calendarDate}
+                onChange={(e) => setCalendarDate(e.target.value)}
+                className="border px-3 py-2 rounded mr-2 focus:ring-2 focus:ring-purple-400"
+              />
+              <button
+                onClick={async () => {
+                  const res = await fetch(`http://localhost:8000/get-events-by-date?date=${calendarDate}`);
+                  const data = await res.json();
+                  setEvents(data.events || []);
+                }}
+                className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition"
+              >
+                Fetch Events
+              </button>
+            </div>
+
+            {/* Display Events */}
+            {events.length > 0 ? (
+              <div className="space-y-3">
+                {events.map((event, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-xl p-4 shadow-md bg-gradient-to-r from-green-200 via-blue-200 to-purple-200"
+                  >
+                    <h4 className="font-bold text-gray-800">
+                      {event.summary || "No Title"}
+                    </h4>
+                    {event.start && event.end ? (
+                      <>
+                        <p className="text-sm text-gray-700">
+			    Start: {new Date(event.start).toLocaleString()}
+                        </p>
+                        <p className="text-sm text-gray-700">
+			    End: {new Date(event.end).toLocaleString()}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-gray-500 italic">Loading ...</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">No events to display.</p>
+            )}
+
+            {/* Schedule Meeting */}
+            <div className="mt-6">
+              <h3 className="font-medium mb-2 text-blue-700">Schedule Meeting</h3>
+              <input
+                type="text"
+                placeholder="Title"
+                value={meetingTitle}
+                onChange={(e) => setMeetingTitle(e.target.value)}
+                className="border px-3 py-2 rounded mr-2 mb-2 focus:ring-2 focus:ring-blue-400"
+              />
+              <input
+                type="datetime-local"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="border px-3 py-2 rounded mr-2 mb-2 focus:ring-2 focus:ring-blue-400"
+              />
+              <input
+                type="datetime-local"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="border px-3 py-2 rounded mr-2 mb-2 focus:ring-2 focus:ring-blue-400"
+              />
+              <button
+                onClick={async () => {
+                  const res = await fetch("http://localhost:8000/schedule-meeting", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      title: meetingTitle,
+                      start_time: startTime,
+                      end_time: endTime,
+                    }),
+                  });
+                  const data = await res.json();
+                  alert(data.message || "Meeting scheduled!");
+                }}
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+              >
+                Schedule
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default App;
+
