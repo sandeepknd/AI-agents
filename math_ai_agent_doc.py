@@ -12,6 +12,7 @@ import re
 from email.mime.text import MIMEText
 import base64
 from gmail_auth import get_gmail_service
+from fastapi.responses import JSONResponse
 
 import requests
 LLM_URL     = "http://localhost:11434"
@@ -93,6 +94,14 @@ def email_agent(query: str) -> str:
     except Exception as e:
         return f"❌ Failed to send email: {str(e)}"
 
+
+def get_events_by_date(selectedDate="2025-08-04"):
+    #resp_dict = { "tool_name": "get_calendar_events","parameters": {"date": "2025-08-04"} }
+    resp_dict = { "tool_name": "get_calendar_events","parameters": {"date": selectedDate} }
+    return resp_dict
+    #return JSONResponse(content=resp_dict)
+
+
 # === STEP 2: Define tool registry ===
 tool_registry = {
     "add_numbers": add_numbers,
@@ -101,6 +110,7 @@ tool_registry = {
     "divide": divide,
     "get_weather": get_weather,
     "email_agent": email_agent,
+    "get_events_by_date": get_events_by_date,
     "analyze_document": analyze_document
 }
 
@@ -129,6 +139,7 @@ def process_input(user_query):
         " divide(a: number, b: number) : returns the result of division"
         " get_weather(city: string) : returns the weather of the city passed as a parameter."
         " analyze_document(path: string) : analyzes or summarizes a text or PDF document from the specified file path."
+        " get_events_by_date(selectedDate: string) : returns a json dict. The date parameter should be passed to the tool in 2025-MM-DD format. User query can be like - Show the events for August 10, list the events for today, fetch the events for 14th May, Display meetings for next Friday."
         " email_agent(query: string) : sends email to the mentioned recipients with subject and body."
         "\nIf there is no available tool for the respective user input, then just return { \"tool\": null, \"args\": { \"query\": \"...\" } }"
         "\nONLY return a valid JSON. No explanation, no markdown."
@@ -146,7 +157,8 @@ def process_input(user_query):
         if tool_name in tool_registry:
             result = tool_registry[tool_name](**args)
             print("✅ Tool {} returned: {}".format(tool_name, result))
-            return f"{result}"
+            #return f"{result}"
+            return result
 
         elif tool_name is None:
             # Fallback to direct LLM response
