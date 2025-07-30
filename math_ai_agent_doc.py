@@ -13,9 +13,13 @@ from email.mime.text import MIMEText
 import base64
 from gmail_auth import get_gmail_service
 from fastapi.responses import JSONResponse
+from datetime import datetime
+import dateparser
 
 import requests
 LLM_URL     = "http://localhost:11434"
+LLM_NAME = "llama3"
+#LLM_NAME = "gemma"
 # === STEP 1: Define local tools ===
 def add_numbers(numbers):
     print("[DEBUG] add_numbers() called")
@@ -95,11 +99,46 @@ def email_agent(query: str) -> str:
         return f"❌ Failed to send email: {str(e)}"
 
 
-def get_events_by_date(selectedDate="2025-08-04"):
-    #resp_dict = { "tool_name": "get_calendar_events","parameters": {"date": "2025-08-04"} }
-    resp_dict = { "tool_name": "get_calendar_events","parameters": {"date": selectedDate} }
+def resolve_relative_dates(text):
+    patterns = [
+        r"\b(?:today|tomorrow|yesterday)\b",
+        r"\b(?:this|next|coming)\s+(?:Monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b",
+        r"\b(?:in\s+\d+\s+(?:day|days|week|weeks))\b",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            print('MATCHED {}'.format(pattern))
+            relative_phrase = match.group(0)
+            parsed_date = dateparser.parse(relative_phrase, settings={"PREFER_DATES_FROM": "future"})
+            if parsed_date:
+                resolved = parsed_date.strftime("%Y-%m-%d")
+                print(f"[resolve_relative_dates] Extracted: '{relative_phrase}' → {resolved}")
+                return resolved
+
+    print("[resolve_relative_dates] No match or parseable phrase found.")
+    return None
+
+
+def get_events_by_date(date="2025-08-04"):
+    resp_dict = { "tool_name": "get_calendar_events","parameters": {"date": date} }
     return resp_dict
-    #return JSONResponse(content=resp_dict)
+
+def schedule_meeting_llm(title, start_time, end_time, attendees=[], gmeet=False):
+    # Dummy data for example – normally this would be parsed from LLM tool call
+    response = {
+        "tool_name": "schedule_meeting",
+        "parameters": {
+            "title": title,
+            "start_time": start_time,
+            "end_time": end_time,
+            "attendees": attendees,
+            "create_meet_link": gmeet
+        }
+    }
+    print ('response from schedule_meeting_llm {}'.format(response))
+    return response
+
 
 
 # === STEP 2: Define tool registry ===
@@ -111,6 +150,7 @@ tool_registry = {
     "get_weather": get_weather,
     "email_agent": email_agent,
     "get_events_by_date": get_events_by_date,
+    "schedule_meeting_llm": schedule_meeting_llm,
     "analyze_document": analyze_document
 }
 
@@ -119,7 +159,7 @@ def call_llama3(prompt):
     response = requests.post(
         "http://localhost:11434/api/generate",
         json={
-            "model": "llama3",
+            "model": LLM_NAME,
             "prompt": prompt,
             "stream": False
         }
@@ -129,6 +169,14 @@ def call_llama3(prompt):
 # === STEP 4: Parse intent and execute tools manually ===
 def process_input(user_query):
     print("\n[INFO] [process_input] Sending prompt to LLaMA3...")
+
+    resolved_date = resolve_relative_dates(user_query)
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    if resolved_date:
+        user_query += f" (The resolved date: {resolved_date})"  # <=== Inject into prompt
+        print('user_query is {}'.format(user_query))
+
     system_prompt = (
         "You are an AI tool-calling assistant."
         " Read the user's query and return an output in JSON object in the format: {\"tool\": tool_name, \"args\": arguments}."
@@ -139,8 +187,9 @@ def process_input(user_query):
         " divide(a: number, b: number) : returns the result of division"
         " get_weather(city: string) : returns the weather of the city passed as a parameter."
         " analyze_document(path: string) : analyzes or summarizes a text or PDF document from the specified file path."
-        " get_events_by_date(selectedDate: string) : returns a json dict. The date parameter should be passed to the tool in 2025-MM-DD format. User query can be like - Show the events for August 10, list the events for today, fetch the events for 14th May, Display meetings for next Friday."
+        f" get_events_by_date(date: string) : returns a json dict. Today is {today}. Interpret 'today', 'tomorrow' and all other dates based on {today}. The date parameter should be passed to the tool in YYYY-MM-DD format. If any resolved date is mentioned in parentheses like (Resolved date: 2025-08-09), consider using it as the 'date' parameter. User query can be like - Show the events for August 10, list the events for today, fetch the events for 31st May, Display meetings for next Friday."
         " email_agent(query: string) : sends email to the mentioned recipients with subject and body."
+        " schedule_meeting_llm(title : string, start_time : string, end_time : string, attendees : list of string, gmeet: bool). It returns meeting details dictionary with fields like title, start_time, end_time, attendees(optional), gmeet(optional).User input example 1 -  Set up a meeting called Project Update on 10 July from 10 AM to 11 AM. Here the parameters are title = Project Update, start_time = 2025-07-10T10:00:00 , end_time = 2025-07-10T10:00:00. Parameters attendees and gmeet are optional. User Input example 2 - Schedule a meeting called team sync on August 31st from 3 PM to 4 PM with attendees alice@example.com and bob@example.com including Meeting link. Here the parameters are title = team sync , start_time = 2025-08-31T15:00:00 , end_time = 2025-08-31T16:00:00, attendees = [\"alice@example.com\", \"bob@example.com\"] , gmeet = True ." 
         "\nIf there is no available tool for the respective user input, then just return { \"tool\": null, \"args\": { \"query\": \"...\" } }"
         "\nONLY return a valid JSON. No explanation, no markdown."
     )

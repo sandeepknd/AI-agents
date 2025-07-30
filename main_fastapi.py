@@ -46,8 +46,9 @@ def build_service():
     return build("calendar", "v3", credentials=creds)
 
 # -------------------------------
-# STEP 1: AUTHORIZATION URL
+# ✅ STEP 1: AUTHORIZATION URL
 # -------------------------------
+
 @app.get("/authorize-calendar")
 def authorize_calendar():
     flow = Flow.from_client_secrets_file(
@@ -59,9 +60,11 @@ def authorize_calendar():
     auth_url, state = flow.authorization_url(prompt="consent")
     return RedirectResponse(auth_url)
 
+
 # -------------------------------
-# STEP 2: CALLBACK HANDLER
+# ✅ STEP 2: CALLBACK HANDLER
 # -------------------------------
+
 @app.get("/oauth2callback")
 def oauth2callback(request: Request):
     try:
@@ -90,9 +93,11 @@ def oauth2callback(request: Request):
     except Exception as e:
         print(f"OAuth Error: {str(e)}")
         raise HTTPException(status_code=500, detail="OAuth failed")
+
 # -------------------------------
-# STEP 3: LIST UPCOMING EVENTS
+# ✅ STEP 3: LIST UPCOMING EVENTS
 # -------------------------------
+
 @app.get("/get-events")
 def get_events():
     if not os.path.exists(TOKEN_FILE):
@@ -126,7 +131,7 @@ def get_events():
         raise HTTPException(status_code=500, detail="Failed to fetch events")
 
 # -------------------------------
-# STEP 4: CREATE EVENT
+# ✅ STEP 4: CREATE EVENT
 # -------------------------------
 @app.post("/create-event")
 async def create_event(request: Request):
@@ -160,7 +165,7 @@ async def create_event(request: Request):
 
 
 # -------------------------------
-# STEP 4: Retrieve events by date
+# ✅ STEP 5 : Retrieve events by date
 # -------------------------------
 @app.get("/get-events-by-date")
 def get_events_by_date(date: str = Query(..., description="Date in YYYY-MM-DD format")):
@@ -192,7 +197,8 @@ def get_events_by_date(date: str = Query(..., description="Date in YYYY-MM-DD fo
                 "end": event.get("end", {}).get("dateTime", event.get("end", {}).get("date")),
                 "link": event.get("hangoutLink", ""),
                 "attendees": [a.get("email") for a in event.get("attendees", [])] if event.get("attendees") else [],
-                "location": event.get("location", "N/A")
+                "location": event.get("location", "N/A"),
+                "id": event.get("id")
             }
             for event in events
         ]
@@ -200,6 +206,70 @@ def get_events_by_date(date: str = Query(..., description="Date in YYYY-MM-DD fo
     except Exception as e:
         print("Error:", str(e))
         return {"error": str(e)}
+
+
+# -------------------------------
+# ✅ Request model for scheduling
+# -------------------------------
+
+class ScheduleRequest(BaseModel):
+    title: str
+    start_time: str
+    end_time: str
+    description: str = None
+    location: str = None
+    attendees: list[str] = []
+    create_meet_link: bool = False
+
+@app.post("/schedule-meeting")
+async def schedule_meeting(req: ScheduleRequest):
+    try:
+        service = build_service()
+
+        event_body = {
+            "summary": req.title,
+            "description": req.description,
+            "start": {"dateTime": req.start_time, "timeZone": "Asia/Kolkata"},  # Change TZ as needed
+            "end": {"dateTime": req.end_time, "timeZone": "Asia/Kolkata"},
+            "location": req.location,
+            "attendees": [{"email": email} for email in req.attendees],
+        }
+
+        if req.create_meet_link:
+            event_body["conferenceData"] = {
+                "createRequest": {"requestId": f"meet-{os.urandom(4).hex()}"}
+            }
+
+        print('event_body is {}'.format(event_body))
+        event = service.events().insert(
+            calendarId="primary",
+            body=event_body,
+            conferenceDataVersion=1 if req.create_meet_link else 0,
+        ).execute()
+
+        return {
+            "message": "{} scheduled successfully".format(event.get("summary")),
+            "event_id": event["id"],
+            "html_link": event.get("htmlLink"),
+            "meet_link": event.get("hangoutLink")
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error scheduling meeting: {str(e)}")
+
+
+# -------------------------------
+# ✅ Delete event by ID
+# -------------------------------
+
+@app.delete("/delete-event")
+async def delete_event(event_id: str = Query(..., description="ID of the event to delete")):
+    try:
+        service = build_service()
+        service.events().delete(calendarId="primary", eventId=event_id).execute()
+        return {"message": f"Event {event_id} deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting event: {str(e)}")
 #------------------end of Calendar support-----------------
 
 
