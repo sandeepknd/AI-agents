@@ -8,6 +8,7 @@ from fastapi import UploadFile, File
 from rag_log_analyzer import build_vectorstore, get_qa_chain, build_vectorstore_from_all_logs
 import os, shutil, json, pytz
 from PyPDF2 import PdfReader
+
 #------------For Calendar --------------
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
@@ -15,7 +16,8 @@ from googleapiclient.discovery import build
 from typing import Optional
 from datetime import datetime, timedelta
 
-
+#------------For Model Training--------------
+from training_store import save_issue_resolution, find_similar_issues, load_training_data, TRAINING_FILE
 
 
 app = FastAPI()
@@ -358,3 +360,45 @@ async def analyze_log(query: dict):
     qa = get_qa_chain()
     result = qa.run(question)
     return {"response": result}
+
+def process_training_query(user_query):
+    matches = find_similar_issues(user_query)
+    if matches:
+        context = "\n".join([f"Issue: {m['issue']}\nResolution: {m['resolution']}" for m in matches])
+        prompt = f"""You are a helpful assistant. The user is troubleshooting an issue.
+Here are similar past cases:
+{context}
+
+Now suggest the best resolution for the following new issue:
+{user_query}
+"""
+    else:
+        prompt = f"""You are a helpful assistant. Suggest a resolution for the following issue:
+{user_query}"""
+
+    print ('LLAMA3 resp is {}'.format(prompt))
+    response = call_llama3(prompt)
+    return response
+
+@app.post("/train-model")
+async def train_model(data: dict):
+    save_issue_resolution(data["issue"], data["resolution"])
+    return {"status": "Saved"}
+
+@app.post("/suggest-resolution")
+async def suggest_resolution(data: dict):
+    result = process_training_query(data["query"])
+    print ('backend process_training_query returns {}'.format(result))
+    return {"suggestion": result}
+
+@app.get("/get-training-history")
+async def get_training_history():
+    data = load_training_data()
+    return JSONResponse(content={"history": data})
+
+@app.delete("/clear-training-history")
+def clear_training_history():
+    with open(TRAINING_FILE, "w") as f:
+        f.write("[]")
+    return {"message": "Training history cleared."}
+

@@ -4,6 +4,8 @@ import logo from "./logo.png";
 import TypingDots from "./TypingDots";
 import ReactMarkdown from "react-markdown";
 import { parse, format } from "date-fns"; // npm install date-fns
+import ModelTrainingTab from "./ModelTrainingTab";
+
 
 // Voice Input Recognition with auto send
 const SpeechRecognition =
@@ -19,21 +21,23 @@ if (SpeechRecognition) {
 }
 
 function App() {
-  const [input, setInput] = useState("");
-  const [messages, setMessages] = useState([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [botThinking, setBotThinking] = useState(false);
-  const [uploadMessage, setUploadMessage] = useState("");
-  const [listening, setListening] = useState(false);
-  const [autoSendTimer, setAutoSendTimer] = useState(null);
+	const [input, setInput] = useState("");
+	const [messages, setMessages] = useState([]);
+	const [isUploading, setIsUploading] = useState(false);
+	const [botThinking, setBotThinking] = useState(false);
+	const [uploadMessage, setUploadMessage] = useState("");
+	const [listening, setListening] = useState(false);
+	const [autoSendTimer, setAutoSendTimer] = useState(null);
 
-  const [activeTab, setActiveTab] = useState("Home"); // Show intro by default
-  const [calendarDate, setCalendarDate] = useState("");
-  const [meetingTitle, setMeetingTitle] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [events, setEvents] = useState([]);
-  const [voiceFeedback, setVoiceFeedback] = useState("");
+	const [activeTab, setActiveTab] = useState("Home"); // Show intro by default
+	const [calendarDate, setCalendarDate] = useState("");
+	const [meetingTitle, setMeetingTitle] = useState("");
+	const [startTime, setStartTime] = useState("");
+	const [endTime, setEndTime] = useState("");
+	const [events, setEvents] = useState([]);
+	const [voiceFeedback, setVoiceFeedback] = useState("");
+
+
 
   const chatEndRef = useRef(null);
 
@@ -257,9 +261,8 @@ if (activeTab === "Calendar") {
   return;
 }
 
-
-
 // End of Activetab calendar
+
       setInput(transcript);
       if (autoSendTimer) clearTimeout(autoSendTimer);
 
@@ -358,6 +361,14 @@ if (activeTab === "Calendar") {
     if (e.key === "Enter") sendMessage();
   };
 
+
+/* -------------- handle functions related to Training Model -----------------*/
+
+
+/* ------------END of Training related handle functions definitions -----------------*/
+
+
+
   return (
     <div className="min-h-screen flex flex-col items-center px-4 py-6 bg-gradient-to-br from-green-100 via-blue-100 to-green-200">
       {/* Header */}
@@ -370,7 +381,7 @@ if (activeTab === "Calendar") {
 
       {/* Tabs */}
       <div className="w-full max-w-6xl flex justify-center gap-4 mb-6">
-        {["Home", "Chat", "Logs", "Mail Services", "Train Model", "Calendar"].map((tab) => (
+        {["Home", "Chat", "Logs", "Mail Services", "Model Training", "Calendar"].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -384,6 +395,12 @@ if (activeTab === "Calendar") {
           </button>
         ))}
       </div>
+
+{/* Start of activeTab Model Training block  */} 
+
+
+{/* END of activeTab Model Training block  */} 
+
 
       {/* Intro Screen */}
       {activeTab === "Home" && (
@@ -509,9 +526,12 @@ if (activeTab === "Calendar") {
         </div>
       )}
 
+      {/* Logs Tab */}
+      {activeTab === "Model Training" && <ModelTrainingTab />}
+
       {/* Calendar Tab */}
       {activeTab === "Calendar" && (
-        <div className="bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 rounded-2xl shadow-lg p-4">
+        <div className="w-full bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 rounded-2xl shadow-lg p-4">
 	      <div className="flex items-center gap-3 mb-4">
 	      {/* Calendar-like date icon */}
 	      <div className="w-12 h-12 bg-white rounded-lg shadow-md border border-gray-300 flex flex-col items-center justify-center">
