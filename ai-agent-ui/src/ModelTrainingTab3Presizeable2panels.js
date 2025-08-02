@@ -134,7 +134,7 @@ const ModelTrainingTab = () => {
   return (
     <div
       ref={containerRef}
-      className={`flex h-[85vh] w-full gap-x-2 px-2 transition-colors ${darkMode ? "bg-gray-900" : "bg-white text-black"}`}
+      className={`flex h-[79vh] w-full gap-x-2 px-2 transition-colors ${darkMode ? "bg-gray-900" : "bg-white text-black"}`}
     >
       {/* Sidebar */}
       <div

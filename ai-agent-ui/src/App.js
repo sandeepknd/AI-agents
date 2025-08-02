@@ -516,7 +516,7 @@ if (activeTab === "Calendar") {
 
       {/* Logs Tab */}
       {activeTab === "Logs" && (
-        <div className="bg-gradient-to-br from-yellow-100 via-orange-100 to-red-100 rounded-2xl shadow-lg p-4">
+        <div className="h-[79vh] w-full bg-gradient-to-br from-yellow-100 via-orange-100 to-red-100 rounded-2xl shadow-lg p-4">
           <h2 className="text-3xl font-bold mb-4 text-red-700">📜 Log Analyzer</h2>
           <p className="text-gray-700 text-lg mb-4">Upload your logs and let AI analyze them for issues, errors, and summaries.</p>
           <label className="mt-4 block cursor-pointer px-6 py-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 w-fit">
@@ -531,7 +531,7 @@ if (activeTab === "Calendar") {
 
       {/* Calendar Tab */}
       {activeTab === "Calendar" && (
-        <div className="w-full bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 rounded-2xl shadow-lg p-4">
+        <div className="h-[79vh] w-full bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 rounded-2xl shadow-lg p-4">
 	      <div className="flex items-center gap-3 mb-4">
 	      {/* Calendar-like date icon */}
 	      <div className="w-12 h-12 bg-white rounded-lg shadow-md border border-gray-300 flex flex-col items-center justify-center">

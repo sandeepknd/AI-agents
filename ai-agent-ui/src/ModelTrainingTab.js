@@ -1,18 +1,28 @@
-import React, { useEffect, useRef, useState } from "react";
-import { FaHistory, FaChevronLeft, FaChevronRight, FaMoon, FaSun, FaTrash, FaPaperPlane } from "react-icons/fa";
+import React, { useEffect, useState, useRef } from "react";
+import {
+  FaHistory,
+  FaChevronLeft,
+  FaChevronRight,
+  FaMoon,
+  FaSun,
+  FaTrash,
+  FaPaperPlane,
+} from "react-icons/fa";
 
 const ModelTrainingTab = () => {
   const [issue, setIssue] = useState("");
   const [resolution, setResolution] = useState("");
   const [query, setQuery] = useState("");
-  const [response, setResponse] = useState("");
-  const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [selectedHistory, setSelectedHistory] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
-
-  const responseRef = useRef(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [botThinking, setBotThinking] = useState(false);
+  const chatEndRef = useRef(null);
+  const [panelWidths, setPanelWidths] = useState({ train: 35, chat: 65 });
+  const resizerRef = useRef(null);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     fetch("http://localhost:8000/get-training-history")
@@ -22,10 +32,43 @@ const ModelTrainingTab = () => {
   }, []);
 
   useEffect(() => {
-    if (responseRef.current) {
-      responseRef.current.scrollIntoView({ behavior: "smooth" });
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, botThinking]);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!resizerRef.current || !containerRef.current) return;
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const offsetX = e.clientX - containerRect.left;
+      const totalWidth = containerRect.width;
+      const trainWidth = (offsetX / totalWidth) * 100;
+      const chatWidth = 100 - trainWidth;
+
+      if (trainWidth > 20 && chatWidth > 20) {
+        setPanelWidths({ train: trainWidth, chat: chatWidth });
+      }
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    const handleMouseDown = () => {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    };
+
+    if (resizerRef.current) {
+      resizerRef.current.addEventListener("mousedown", handleMouseDown);
     }
-  }, [response]);
+
+    return () => {
+      if (resizerRef.current) {
+        resizerRef.current.removeEventListener("mousedown", handleMouseDown);
+      }
+    };
+  }, []);
 
   const handleTrain = async () => {
     if (!issue.trim() || !resolution.trim()) return;
@@ -50,34 +93,54 @@ const ModelTrainingTab = () => {
   const handleQuery = async () => {
     if (!query.trim()) return;
 
-    setResponse("");
-    setLoading(true);
+    const userMessage = { sender: "user", text: query };
+    setChatMessages((prev) => [...prev, userMessage]);
+    setQuery("");
+    setBotThinking(true);
 
-    const res = await fetch("http://localhost:8000/suggest-resolution", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query }),
-    });
+    try {
+      const res = await fetch("http://localhost:8000/suggest-resolution", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+      });
 
-    const data = await res.json();
-    console.log("LLM suggestion:", data);
-    setResponse(data.suggestion || "❌ No suggestion found");
-    setLoading(false);
+      const data = await res.json();
+      const botMessage = {
+        sender: "bot",
+        text: data.suggestion || "❌ No suggestion found",
+      };
+      setChatMessages((prev) => [...prev, botMessage]);
+    } catch (error) {
+      setChatMessages((prev) => [
+        ...prev,
+        { sender: "bot", text: "❌ Failed to fetch suggestion." },
+      ]);
+    } finally {
+      setBotThinking(false);
+    }
   };
 
   const handleClearHistory = async () => {
-    await fetch("http://localhost:8000/clear-training-history", { method: "POST" });
+    await fetch("http://localhost:8000/clear-training-history", { method: "DELETE" });
     setHistory([]);
     setSelectedHistory(null);
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") handleQuery();
+  };
+
   return (
-    <div className={`flex w-full min-h-screen transition-colors ${darkMode ? "bg-gray-900 text-green" : "bg-white text-black"}`}>
+    <div
+      ref={containerRef}
+      className={`flex h-[79vh] w-full gap-x-2 px-2 transition-colors ${darkMode ? "bg-gray-900" : "bg-white text-black"}`}
+    >
       {/* Sidebar */}
       <div
         className={`transition-all duration-300 ease-in-out ${
-          sidebarOpen ? "w-80" : "w-10"
-        } bg-gray-100 dark:bg-gray-800 p-2 overflow-y-auto border-r border-gray-300 relative`}
+          sidebarOpen ? "w-64" : "w-10"
+        } bg-gray-100 dark:bg-gray-800 p-2 overflow-y-auto border-r border-gray-300 relative rounded-xl shadow-lg`}
       >
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -121,82 +184,116 @@ const ModelTrainingTab = () => {
         )}
       </div>
 
-      {/* Main Panel */}
-{/* Main Panel */}
-<div className="flex-1 h-[80vh] flex flex-col bg-gradient-to-br from-yellow-200 via-purple-200 to-blue-200 rounded-2xl shadow-lg p-6 ml-2">
-  <div className="flex justify-between items-center mb-4">
-    <h2 className="text-2xl font-bold">📚 Model Training Assistant</h2>
-    <button onClick={() => setDarkMode(!darkMode)} className="text-lg hover:text-yellow-500">
-      {darkMode ? <FaSun /> : <FaMoon />}
-    </button>
-  </div>
-
-  {/* Training Input */}
-  <div>
-    <input
-      type="text"
-      placeholder="Describe the issue (e.g., App crashed with OOM error)"
-      className="w-full border p-2 rounded-lg mb-2"
-      value={issue}
-      onChange={(e) => setIssue(e.target.value)}
-    />
-    <textarea
-      placeholder="Describe the resolution or workaround"
-      className="w-full border p-2 rounded-lg h-24 mb-2"
-      value={resolution}
-      onChange={(e) => setResolution(e.target.value)}
-    />
-    <button
-      onClick={handleTrain}
-      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-    >
-      Submit Training Data
-    </button>
-  </div>
-
-  {/* Suggestions Section */}
-  <div className="border-t pt-4 mt-4 flex flex-col h-full">
-    <h2 className="text-2xl font-bold mb-2">Ask for Suggestions</h2>
-
-    {/* Input + Send Button */}
-    <div className="relative mb-2">
-      <input
-        type="text"
-        placeholder="Type an issue you're facing..."
-        className="w-full border p-2 pr-12 rounded-lg"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") handleQuery();
-        }}
-      />
-      <button
-        onClick={handleQuery}
-        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-green-600 hover:text-green-800"
-        title="Submit"
+      {/* Model Training Panel */}
+      <div
+        className="p-6 border-r border-gray-300 bg-gradient-to-br from-yellow-200 via-purple-200 to-blue-200 rounded-xl shadow-lg"
+        style={{ width: `${panelWidths.train}%` }}
       >
-        <FaPaperPlane size={22} />
-      </button>
-    </div>
-
-    {/* Output Response Box - Fixed Height with Scroll */}
-    <div className="flex-grow overflow-y-auto max-h-[200px] bg-gray-50 border border-green-200 p-4 rounded shadow-inner">
-      {loading ? (
-        <div className="text-gray-600 italic flex items-center gap-2 animate-pulse">
-          <span className="dot-flashing" /> Thinking...
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">📚 Model Training Assistant</h2>
+          <button onClick={() => setDarkMode(!darkMode)} className="text-lg hover:text-yellow-500">
+            {darkMode ? <FaSun /> : <FaMoon />}
+          </button>
         </div>
-      ) : response ? (
-        <>
-          <h3 className="font-semibold text-green-700 mb-1">Suggested Resolution:</h3>
-          <p className="text-gray-800 whitespace-pre-line dark:text-white">{response}</p>
-        </>
-      ) : (
-        <div className="text-gray-500 italic">No response yet.</div>
-      )}
-    </div>
-  </div>
-</div>
 
+        <input
+          type="text"
+          placeholder="Describe the issue"
+          className="w-full border p-2 rounded-lg mb-2"
+          value={issue}
+          onChange={(e) => setIssue(e.target.value)}
+        />
+        <textarea
+          placeholder="Describe the resolution or workaround"
+          className="w-full border p-2 rounded-lg h-24 mb-2"
+          value={resolution}
+          onChange={(e) => setResolution(e.target.value)}
+        />
+        <button
+          onClick={handleTrain}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Submit Training Data
+        </button>
+      </div>
+
+      {/* Resizer */}
+      <div
+        ref={resizerRef}
+        className="w-2 cursor-col-resize bg-gray-300 hover:bg-gray-400"
+        style={{ marginTop: "1rem", marginBottom: "1rem" }}
+      ></div>
+
+      {/* Chat Panel */}
+      <div
+        className="p-4 flex flex-col h-full bg-gradient-to-br from-yellow-200 via-purple-200 to-blue-200 rounded-xl shadow-lg"
+        style={{ width: `${panelWidths.chat}%` }}
+      >
+        <h2 className="text-xl font-semibold mb-2">🤖 AI Suggestions</h2>
+        <div className="flex-1 overflow-y-auto flex flex-col space-y-4 pr-2">
+          {chatMessages.map((msg, idx) => (
+            <div
+              key={idx}
+              className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className={`rounded-lg px-4 py-2 shadow-md ${
+                  msg.sender === "user"
+                    ? "bg-blue-600 text-white self-end max-w-[60%]"
+                    : "bg-gray-200 text-gray-900 self-start max-w-[100%]"
+                }`}
+              >
+                {msg.sender === "bot" ? (
+                  /^\d+\.\s/.test(msg.text.trim()) ? (
+                    <ol className="list-decimal pl-6 space-y-1">
+                      {msg.text
+                        .split(/\n(?=\d+\.\s)/)
+                        .map((item, idx) => (
+                          <li
+                            key={idx}
+                            className="text-sm text-gray-900 font-sans leading-relaxed"
+                          >
+                            {item.replace(/^\d+\.\s/, "").trim()}
+                          </li>
+                        ))}
+                    </ol>
+                  ) : (
+                    <pre className="whitespace-pre-wrap text-sm text-gray-900 font-sans leading-relaxed">
+                      {msg.text}
+                    </pre>
+                  )
+                ) : (
+                  msg.text
+                )}
+              </div>
+            </div>
+          ))}
+          {botThinking && (
+            <div className="flex items-center space-x-2 text-sm text-gray-500 italic">
+              <span className="dot-flash">● ● ●</span> Thinking...
+            </div>
+          )}
+          <div ref={chatEndRef} />
+        </div>
+
+        <div className="mt-4 flex items-center">
+          <input
+            type="text"
+            placeholder="Type an issue you're facing..."
+            className="flex-1 border p-2 rounded-lg mr-2"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+          />
+          <button
+            onClick={handleQuery}
+            className="text-2xl p-2 bg-green-600 text-white rounded-full hover:bg-green-700"
+            title="Send"
+          >
+            <FaPaperPlane />
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
