@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from math_ai_agent_doc import process_input, call_llama3  # import your function
 from fastapi import UploadFile, File
 from rag_log_analyzer import build_vectorstore, get_qa_chain, build_vectorstore_from_all_logs
-import os, shutil, json, pytz
+import os, shutil, json, pytz, requests, httpx
 from PyPDF2 import PdfReader
 
 #------------For Calendar --------------
@@ -415,9 +415,92 @@ async def github_webhook(request: Request):
 
     # ✅ Use fork's repo clone URL if it's a fork
     token = os.getenv("GITHUB_TOKEN")
-    #repo_url = f"git@github.com:sandeepknd/openshift-tests-private.git"
     repo_url = payload["repository"]["clone_url"]
 
     await handle_pull_request(repo_url, branch, pr_url)
     return {"status": "PR received and processed"}
 
+class CommentRequest(BaseModel):
+    pr_url: str
+    comment: str
+
+@app.post("/comment")
+async def post_comment(req: CommentRequest):
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return {"error": "Missing GitHub token"}
+
+    parts = req.pr_url.split("/")
+    owner, repo, pr_number = parts[3], parts[4], parts[6]
+    url = f"https://api.github.com/repos/{owner}/{repo}/issues/{pr_number}/comments"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+    }
+
+    data = {"body": req.comment}
+    r = requests.post(url, headers=headers, json=data)
+    return r.json()
+
+
+#-----------------generate PR Review Comment-------------------------
+
+class PRUrlRequest(BaseModel):
+    pr_url: str
+
+def extract_pr_info(pr_url: str):
+    # e.g., https://github.com/user/repo/pull/123
+    try:
+        parts = pr_url.strip().split("/")
+        owner = parts[3]
+        repo = parts[4]
+        pr_number = int(parts[6])
+        return owner, repo, pr_number
+    except Exception:
+        return None, None, None
+
+def get_diff_from_github(owner, repo, pr_number, token):
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github.v3.diff"
+    }
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    response = httpx.get(url, headers=headers)
+    return response.text if response.status_code == 200 else ""
+
+def generate_comment_with_llama3(diff_text: str):
+    prompt = f"""
+You are a helpful code reviewer.
+
+Review the following pull request diff and generate a concise GitHub comment addressing:
+- Code quality
+- Error handling
+- Testing coverage
+- Best practices
+
+Only include one paragraph with clear suggestions, not excessive praise.
+
+PR Diff:
+{diff_text}
+"""
+
+    return call_llama3(prompt)
+
+@app.post("/generate-comment")
+async def generate_comment(req: PRUrlRequest):
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return {"error": "Missing GITHUB_TOKEN in environment"}
+
+    owner, repo, pr_number = extract_pr_info(req.pr_url)
+    if not all([owner, repo, pr_number]):
+        return {"error": "Invalid PR URL format"}
+
+    diff = get_diff_from_github(owner, repo, pr_number, token)
+    if not diff.strip():
+        return {"error": "Failed to retrieve PR diff"}
+
+    comment = generate_comment_with_llama3(diff)
+    print (comment)
+    return {"comment": comment}
