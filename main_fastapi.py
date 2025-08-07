@@ -19,6 +19,9 @@ from datetime import datetime, timedelta
 #------------For Model Training--------------
 from training_store import save_issue_resolution, find_similar_issues, load_training_data, TRAINING_FILE
 
+#------------For PR Review--------------
+from pr_review import handle_pull_request
+
 
 app = FastAPI()
 UPLOAD_DIR = "uploaded_docs"
@@ -401,4 +404,20 @@ def clear_training_history():
     with open(TRAINING_FILE, "w") as f:
         f.write("[]")
     return {"message": "Training history cleared."}
+
+#-----------------handle PR review-------------------------
+@app.post("/webhook")
+async def github_webhook(request: Request):
+    payload = await request.json()
+
+    pr_url = payload["pull_request"]["html_url"]
+    branch = payload["pull_request"]["head"]["ref"]
+
+    # ✅ Use fork's repo clone URL if it's a fork
+    token = os.getenv("GITHUB_TOKEN")
+    #repo_url = f"git@github.com:sandeepknd/openshift-tests-private.git"
+    repo_url = payload["repository"]["clone_url"]
+
+    await handle_pull_request(repo_url, branch, pr_url)
+    return {"status": "PR received and processed"}
 

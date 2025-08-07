@@ -5,7 +5,7 @@ import TypingDots from "./TypingDots";
 import ReactMarkdown from "react-markdown";
 import { parse, format } from "date-fns"; // npm install date-fns
 import ModelTrainingTab from "./ModelTrainingTab";
-
+import PRReviewForm from "./PRReviewForm";
 
 // Voice Input Recognition with auto send
 const SpeechRecognition =
@@ -381,7 +381,7 @@ if (activeTab === "Calendar") {
 
       {/* Tabs */}
       <div className="w-full max-w-6xl flex justify-center gap-4 mb-6">
-        {["Home", "Chat", "Logs", "Mail Services", "Model Training", "Calendar"].map((tab) => (
+        {["Home", "Model Training", "PR Review", "Calendar", "Chat", "Logs"].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -528,6 +528,8 @@ if (activeTab === "Calendar") {
 
       {/* Logs Tab */}
       {activeTab === "Model Training" && <ModelTrainingTab />}
+      {/* Logs Tab */}
+      {activeTab === "PR Review" && <PRReviewForm />}
 
       {/* Calendar Tab */}
       {activeTab === "Calendar" && (
