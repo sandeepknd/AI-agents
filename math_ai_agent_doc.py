@@ -98,6 +98,107 @@ def email_agent(query: str) -> str:
     except Exception as e:
         return f"❌ Failed to send email: {str(e)}"
 
+def mark_email(mail_sub: str, mark_as_read: bool):
+    service = get_gmail_service()
+    results = service.users().messages().list(userId="me", q=f"subject:{mail_sub}", maxResults=1).execute()
+    messages = results.get("messages", [])
+
+    if not messages:
+        raise HTTPException(status_code=404, detail="Email not found.")
+
+    msg_id = messages[0]["id"]
+
+    if mark_as_read:
+        service.users().messages().modify(
+            userId="me",
+            id=msg_id,
+            body={"removeLabelIds": ["UNREAD"]}
+        ).execute()
+        return {"status": f"Email with subject '{mail_sub}' marked as read."}
+    else:
+        service.users().messages().modify(
+            userId="me",
+            id=msg_id,
+            body={"addLabelIds": ["UNREAD"]}
+        ).execute()
+        return f"✅ Email with subject '{mail_sub}' marked as unread."
+
+def list_messages():
+    service = get_gmail_service()
+    resp = service.users().messages().list(userId="me", maxResults=25).execute()
+    msgs = resp.get("messages", [])
+    out = []
+    for m in msgs:
+        mdata = service.users().messages().get(
+            userId="me",
+            id=m["id"],
+            format="metadata",
+            metadataHeaders=["Subject", "From"]
+            ).execute()
+        headers = {h["name"]: h["value"] for h in mdata.get("payload", {}).get("headers", [])}
+        out.append({
+            "id": m["id"],
+            "snippet": mdata.get("snippet", ""),
+            "labelIds": mdata.get("labelIds", []),
+            "subject": headers.get("Subject"),
+            "from": headers.get("From"),
+        })
+    return {"messages": out}
+
+def search_email_by_subject(service, subject):
+    query = f'subject:"{subject}"'
+    results = service.users().messages().list(userId="me", q=query, maxResults=1).execute()
+    messages = results.get("messages", [])
+    if not messages:
+        raise HTTPException(status_code=404, detail="Email not found.")
+
+    return messages[0]["id"]
+
+def get_email_body(service, message_id):
+    msg = service.users().messages().get(userId="me", id=message_id, format="full").execute()
+    payload = msg["payload"]
+    parts = payload.get("parts", [])
+    
+    body_data = ""
+    if parts:
+        for part in parts:
+            if part["mimeType"] == "text/plain":
+                body_data = part["body"].get("data")
+                break
+            elif part["mimeType"] == "text/html":
+                html_data = part["body"].get("data")
+                if html_data:
+                    decoded_html = base64.urlsafe_b64decode(html_data).decode("utf-8")
+                    body_data = BeautifulSoup(decoded_html, "html.parser").get_text()
+                    break
+    else:
+        body_data = payload["body"].get("data")
+
+    if not body_data:
+        return None
+    
+    if not isinstance(body_data, str):
+        body_data = base64.urlsafe_b64decode(body_data).decode("utf-8")
+    return body_data.strip()
+
+def summarize_email(subject):
+    try:
+        service = get_gmail_service()
+        msg_id = search_email_by_subject(service, subject)
+        if not msg_id:
+            raise HTTPException(status_code=404, detail="No email found with given subject")
+        
+        body = get_email_body(service, msg_id)
+        if not body:
+            raise HTTPException(status_code=404, detail="Email has no readable body")
+        
+        summary = call_llama3(f"Summarize the following email in a few sentences:\n\n{body}")
+        #return {"subject": subject, "summary": summary}
+        return f"✅ Email with subject '{subject}' has a summary {summary}"
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 def resolve_relative_dates(text):
     patterns = [
@@ -119,7 +220,6 @@ def resolve_relative_dates(text):
     print("[resolve_relative_dates] No match or parseable phrase found.")
     return None
 
-
 def get_events_by_date(date="2025-08-04"):
     resp_dict = { "tool_name": "get_calendar_events","parameters": {"date": date} }
     return resp_dict
@@ -139,8 +239,6 @@ def schedule_meeting_llm(title, start_time, end_time, attendees=[], gmeet=False)
     print ('response from schedule_meeting_llm {}'.format(response))
     return response
 
-
-
 # === STEP 2: Define tool registry ===
 tool_registry = {
     "add_numbers": add_numbers,
@@ -149,6 +247,8 @@ tool_registry = {
     "divide": divide,
     "get_weather": get_weather,
     "email_agent": email_agent,
+    "mark_email": mark_email,
+    "summarize_email": summarize_email,
     "get_events_by_date": get_events_by_date,
     "schedule_meeting_llm": schedule_meeting_llm,
     "analyze_document": analyze_document
@@ -188,7 +288,9 @@ def process_input(user_query):
         " get_weather(city: string) : returns the weather of the city passed as a parameter."
         " analyze_document(path: string) : analyzes or summarizes a text or PDF document from the specified file path."
         f" get_events_by_date(date: string) : returns a json dict. Today is {today}. Interpret 'today', 'tomorrow' and all other dates based on {today}. The date parameter should be passed to the tool in YYYY-MM-DD format. If any resolved date is mentioned in parentheses like (Resolved date: 2025-08-09), consider using it as the 'date' parameter. User query can be like - Show the events for August 10, list the events for today, fetch the events for 31st May, Display meetings for next Friday."
+        " summarize_email(subject: string) : summarizes the email with a particular subject. Example of user input - Summarize the email with subject 'any particular subject'"
         " email_agent(query: string) : sends email to the mentioned recipients with subject and body."
+        " mark_email(mail_sub: string, mark_as_read: boolean) : marks an email with subject as read/unread. example user input - Mark the email with subject 'current quarter company highlights' as read."
         " schedule_meeting_llm(title : string, start_time : string, end_time : string, attendees : list of string, gmeet: bool). It returns meeting details dictionary with fields like title, start_time, end_time, attendees(optional), gmeet(optional).User input example 1 -  Set up a meeting called Project Update on 10 July from 10 AM to 11 AM. Here the parameters are title = Project Update, start_time = 2025-07-10T10:00:00 , end_time = 2025-07-10T10:00:00. Parameters attendees and gmeet are optional. User Input example 2 - Schedule a meeting called team sync on August 31st from 3 PM to 4 PM with attendees alice@example.com and bob@example.com including Meeting link. Here the parameters are title = team sync , start_time = 2025-08-31T15:00:00 , end_time = 2025-08-31T16:00:00, attendees = [\"alice@example.com\", \"bob@example.com\"] , gmeet = true ." 
         "\nIf there is no available tool for the respective user input, then just return { \"tool\": null, \"args\": { \"query\": \"...\" } }"
         "\nONLY return a valid JSON. No explanation, no markdown."

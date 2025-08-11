@@ -6,7 +6,9 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 # Scopes: Full Gmail access
-SCOPES = ['https://www.googleapis.com/auth/gmail.send']
+#SCOPES = ['https://www.googleapis.com/auth/gmail.send']
+#SCOPES = ['https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/gmail.modify', 'https://www.googleapis.com/auth/gmail.readonly', 'openid', 'email', 'profile']
+SCOPES = ['https://www.googleapis.com/auth/gmail.modify', 'https://www.googleapis.com/auth/gmail.readonly']
 MAIL_TOKEN = 'token_mail.pickle'
 MAIL_CREDENTIALS = 'credentials_rh_mail.json'
 
