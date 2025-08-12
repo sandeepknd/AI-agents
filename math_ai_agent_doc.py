@@ -15,6 +15,8 @@ from gmail_auth import get_gmail_service
 from fastapi.responses import JSONResponse
 from datetime import datetime
 import dateparser
+from bs4 import BeautifulSoup
+
 
 import requests
 LLM_URL     = "http://localhost:11434"
@@ -158,12 +160,12 @@ def get_email_body(service, message_id):
     msg = service.users().messages().get(userId="me", id=message_id, format="full").execute()
     payload = msg["payload"]
     parts = payload.get("parts", [])
-    
+   
     body_data = ""
     if parts:
         for part in parts:
             if part["mimeType"] == "text/plain":
-                body_data = part["body"].get("data")
+                body_data = base64.urlsafe_b64decode(part['body']['data']).decode('utf-8')
                 break
             elif part["mimeType"] == "text/html":
                 html_data = part["body"].get("data")
@@ -176,7 +178,7 @@ def get_email_body(service, message_id):
 
     if not body_data:
         return None
-    
+
     if not isinstance(body_data, str):
         body_data = base64.urlsafe_b64decode(body_data).decode("utf-8")
     return body_data.strip()
@@ -191,10 +193,9 @@ def summarize_email(subject):
         body = get_email_body(service, msg_id)
         if not body:
             raise HTTPException(status_code=404, detail="Email has no readable body")
-        
         summary = call_llama3(f"Summarize the following email in a few sentences:\n\n{body}")
-        #return {"subject": subject, "summary": summary}
-        return f"✅ Email with subject '{subject}' has a summary {summary}"
+        print (summary)
+        return f"✅ {summary}"
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -286,9 +287,9 @@ def process_input(user_query):
         " multiply(numbers: list of numbers) : returns the result of multiplication"
         " divide(a: number, b: number) : returns the result of division"
         " get_weather(city: string) : returns the weather of the city passed as a parameter."
+        " summarize_email(subject: string) : summarizes the email with a particular subject. Example of user input - Summarize the email with subject 'any particular subject'.Exclusively call this fucntion when user input mentions 'email summary' or 'summarize an emali' etc in user input"
         " analyze_document(path: string) : analyzes or summarizes a text or PDF document from the specified file path."
         f" get_events_by_date(date: string) : returns a json dict. Today is {today}. Interpret 'today', 'tomorrow' and all other dates based on {today}. The date parameter should be passed to the tool in YYYY-MM-DD format. If any resolved date is mentioned in parentheses like (Resolved date: 2025-08-09), consider using it as the 'date' parameter. User query can be like - Show the events for August 10, list the events for today, fetch the events for 31st May, Display meetings for next Friday."
-        " summarize_email(subject: string) : summarizes the email with a particular subject. Example of user input - Summarize the email with subject 'any particular subject'"
         " email_agent(query: string) : sends email to the mentioned recipients with subject and body."
         " mark_email(mail_sub: string, mark_as_read: boolean) : marks an email with subject as read/unread. example user input - Mark the email with subject 'current quarter company highlights' as read."
         " schedule_meeting_llm(title : string, start_time : string, end_time : string, attendees : list of string, gmeet: bool). It returns meeting details dictionary with fields like title, start_time, end_time, attendees(optional), gmeet(optional).User input example 1 -  Set up a meeting called Project Update on 10 July from 10 AM to 11 AM. Here the parameters are title = Project Update, start_time = 2025-07-10T10:00:00 , end_time = 2025-07-10T10:00:00. Parameters attendees and gmeet are optional. User Input example 2 - Schedule a meeting called team sync on August 31st from 3 PM to 4 PM with attendees alice@example.com and bob@example.com including Meeting link. Here the parameters are title = team sync , start_time = 2025-08-31T15:00:00 , end_time = 2025-08-31T16:00:00, attendees = [\"alice@example.com\", \"bob@example.com\"] , gmeet = true ." 
@@ -329,9 +330,12 @@ def process_input(user_query):
 
 # === CLI Entry Point ===
 if __name__ == "__main__":
+    '''
     print("🤖 LLaMA3 Tool Executor (no LangChain)")
     while True:
         user_input = input("\n🧠 Your query (or 'exit'): ")
         if user_input.strip().lower() in ["exit", "quit"]:
             break
         process_input(user_input)
+    '''
+    print(summarize_email("unique test competition"))

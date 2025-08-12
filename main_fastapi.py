@@ -309,7 +309,7 @@ async def ask(req: QueryRequest):
     question = req.query.lower()
 
     # Heuristics to detect if it's a log-related query
-    log_keywords = ["log", "error", "stacktrace", "traceback", "exception", "debug", "crash", "warning", "failure", "summar"]
+    log_keywords = ["log", "error", "stacktrace", "traceback", "exception", "debug", "crash", "warning", "failure"]
 
     if any(kw in question for kw in log_keywords):
         # Use RAG for log-related query
