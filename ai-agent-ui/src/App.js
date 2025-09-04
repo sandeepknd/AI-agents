@@ -3,7 +3,7 @@ import "./index.css";
 import logo from "./logo.png";
 import TypingDots from "./TypingDots";
 import ReactMarkdown from "react-markdown";
-import { parse, format } from "date-fns"; // npm install date-fns
+//import { parse, format } from "date-fns"; // npm install date-fns
 import ModelTrainingTab from "./ModelTrainingTab";
 import PRReviewForm from "./PRReviewForm";
 
@@ -411,10 +411,12 @@ if (activeTab === "Calendar") {
           <p className="text-gray-700 text-lg">
             Experience the power of AI with these features:
           </p>
-          <div className="space-y-2 text-lg font-medium text-gray-600">
+          <div className="space-y-2 text-lg font-medium text-gray-600 text-left">
+            <p>✅ Model training and Troubleshooting</p>
+	    <p>✅ AI powered PR Review </p>
             <p>✅ Smart Chat with Voice Input</p>
             <p>✅ Log Analysis with AI Insights</p>
-            <p>✅ Google Calendar Scheduling</p>
+            <p>✅ Google Calendar Scheduling and mail sending</p>
           </div>
           <p className="mt-4 text-gray-500 italic">
             👉 Select a tab above to get started!
