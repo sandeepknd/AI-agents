@@ -22,6 +22,6 @@ run the frontend from the ai-agent-ui directory.
 
 `npm start`
 
-## preview
+## 👁️ preview
 <img width="1050" height="703" alt="image" src="https://github.com/user-attachments/assets/95ee41c5-5a9d-4bd0-a1f9-bf4b6cccee42" />
 
