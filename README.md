@@ -1,7 +1,7 @@
 # AI-Assistant 
 ## 🚀 Overview
 
-This is an AI-assistant designed to facilitate efficient machine learning model training, to automate the pull request (PR) review process with deatiled comments on code quality and optimization, to manage gmail calendar, to compose and send/delete mail and to summarize logs/documents.   
+This is an AI-assistant designed to facilitate efficient machine learning model training, to automate the pull request (PR) review process with deatiled comments on code quality and optimization, to manage gmail calendar, to compose and send/delete mail with voice controlled instructions and to summarize logs/documents/reports.   
 It uses python (as the backend) wrapped in FastAPI and React as the Frontend. 
 
 ## 🛠️ Getting Started
