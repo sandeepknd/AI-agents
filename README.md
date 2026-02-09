@@ -49,10 +49,9 @@ It uses Python (as the backend) wrapped in FastAPI and React as the Frontend.
 - Best practices suggestions
 - AI-generated review comments
 
-### 🧠 Training & Knowledge Base
+### 🧠 RAG based Training & Knowledge Base
 - Save issue-resolution pairs
-- Similarity-based issue matching using sentence transformers
-- Suggest resolutions based on historical data
+- RAG based engine selects three most relevant solutions from the local saved resolution history, before sending to the LLM for final verdict.
 - Training history management
 
 ## Architecture
