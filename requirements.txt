@@ -1,0 +1,45 @@
+# Web Framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.22
+
+# LangChain & AI
+langchain==1.2.9
+langchain-community==0.4.1
+langchain-classic==1.0.1
+langchain-text-splitters==1.1.0
+langchain-core==1.2.9
+
+# Vector Store & Embeddings
+sentence-transformers==5.2.2
+faiss-cpu==1.9.0
+
+# Document Processing
+PyPDF2==3.0.1
+
+# Google APIs
+google-auth-oauthlib==1.2.1
+google-api-python-client==2.157.0
+google-auth==2.37.0
+
+# Git Integration
+GitPython==3.1.46
+
+# Utilities
+requests==2.32.5
+python-dotenv==1.2.1
+pydantic==2.12.5
+pydantic-settings==2.12.0
+
+# Data Science
+numpy==2.3.5
+scikit-learn==1.8.0
+scipy==1.17.0
+
+# Deep Learning (for sentence transformers)
+torch==2.10.0
+
+# Optional - for better performance
+# Install these based on your system:
+# faiss-gpu  # If you have NVIDIA GPU
+# torch-cuda  # If you have NVIDIA GPU

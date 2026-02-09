@@ -1,10 +1,12 @@
-from langchain.embeddings import OllamaEmbeddings
-from langchain.vectorstores import FAISS
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.llms import Ollama
-from langchain.chains import RetrievalQA
-from langchain.document_loaders import TextLoader
+from langchain_community.embeddings import OllamaEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.llms import Ollama
+from langchain_classic.chains import RetrievalQA
+from langchain_community.document_loaders import TextLoader
 import os
+
+LLM_NAME = "llama3"
 
 # Load logs and embed
 def build_vectorstore(log_path="logs/sample.log"):
@@ -43,7 +45,7 @@ def get_qa_chain():
     db = FAISS.load_local("embeddings", embeddings, allow_dangerous_deserialization=True)
 
     retriever = db.as_retriever(search_kwargs={"k": 3})
-    llm = Ollama(model="llama3")
+    llm = Ollama(model=LLM_NAME)
 
     chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
     return chain
